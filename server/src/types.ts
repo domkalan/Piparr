@@ -40,5 +40,6 @@ export interface EpgInternal {
 
 export interface EpgBuilder {
     channels: XmltvChannel[],
-    programs: XmltvProgramme[]
+    programs: XmltvProgramme[],
+    xmltv: Xmltv | null
 }

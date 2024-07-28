@@ -3,7 +3,7 @@ import fs from 'node:fs';
 
 import Fastify from 'fastify';
 import FastifyStatic from '@fastify/static';
-import { parseXmltv, writeXmltv, XmltvChannel, XmltvProgramme } from '@iptv/xmltv';
+import { writeXmltv, XmltvChannel, XmltvProgramme, Xmltv } from '@iptv/xmltv';
 
 import { Advertise } from "./Advertise";
 import StreamManager from "./StreamManager";
@@ -145,7 +145,8 @@ export default class WebServer {
 
             const epgBuilder: EpgBuilder = {
                 channels: [],
-                programs: []
+                programs: [],
+                xmltv: null
             }
 
             for(const channel of channels) {
@@ -171,11 +172,17 @@ export default class WebServer {
 
                 const epgPrograms = epgProgramsAll.filter(i => i.channel === channelSource.provider_channel);
 
+                epgBuilder.xmltv = epgSource.epg;
                 epgBuilder.channels.push(epgChannel);
                 epgBuilder.programs = epgBuilder.programs.concat(epgPrograms);
             }
 
-            const epgOut = writeXmltv(epgBuilder);
+            // recreate epg
+            const newEpg: Xmltv = { ... epgBuilder.xmltv };
+            newEpg.channels = epgBuilder.channels;
+            newEpg.programmes = epgBuilder.programs;
+
+            const epgOut = writeXmltv(newEpg);
 
             res.header('content-type', 'application/xml');
 
