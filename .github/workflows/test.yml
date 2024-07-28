@@ -26,5 +26,8 @@ jobs:
         with:
           node-version: 18
 
+      - name: Install dependencies
+        run: npm install
+
       - name: 'Build source'
         run: npm run build

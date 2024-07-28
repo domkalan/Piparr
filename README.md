@@ -1,5 +1,6 @@
 # Piparr
 [![GitHub license](https://img.shields.io/github/license/domkalan/piparr.svg)](https://github.com/domkalan/piparr/blob/master/LICENSE) [![GitHub release](https://img.shields.io/github/release/domkalan/piparr.svg)](https://GitHub.com/domkalan/piparr/releases/) [![GitHub Actions](https://github.com/domkalan/piparr/actions/workflows/test.yml/badge.svg)](https://github.com/domkalan/piparr/actions/)
+
 An M3U/IPTV proxy server designed to be fast and user friendly. Also with experimental support for multiple providers to power channels.
 
 ### Why
