@@ -164,11 +164,11 @@ export default class StreamManager {
     }
 
     public static async MonitorStreams() {
-        await this.FetchStreams();
-
         // fetch streams every 1 hour
-        setTimeout(() => {
+        setInterval(() => {
             this.FetchStreams();
         }, 3.6e+6);
+
+        await this.FetchStreams();
     }
 }
