@@ -1,5 +1,7 @@
 FROM node:18
 
+ADD . /app
+
 RUN npm install && \
 npm run build
 
