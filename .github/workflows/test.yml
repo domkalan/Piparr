@@ -1,5 +1,5 @@
 #
-name: Autobuild Docker Image
+name: Test
 
 # Configures this workflow to run every time a change is pushed to the branch called `release`.
 on:
