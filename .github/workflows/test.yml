@@ -27,4 +27,4 @@ jobs:
           node-version: 18
 
       - name: 'Build source'
-      - run: npm run build
+        run: npm run build
