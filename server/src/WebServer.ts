@@ -139,7 +139,7 @@ export default class WebServer {
 
             const channels = await DatabaseEngine.All(`SELECT * FROM channels;`) as Channel[];
 
-            console.log(`[Piparr] Will build guide for ${channels} channel(s)`);
+            console.log(`[Piparr] Will build guide for ${channels.length} channel(s)`);
 
             const channelSources = await DatabaseEngine.All(`SELECT * FROM channel_source;`) as ChannelSource[];
 
