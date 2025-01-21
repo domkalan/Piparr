@@ -1,13 +1,13 @@
 import { Xmltv, XmltvChannel, XmltvProgramme } from "@iptv/xmltv"
 
-export interface Provider {
+export interface Stream {
     id: number,
     name: string,
     stream: string,
-    epg: string,
     connections: number,
     last_updated: string,
     regex?: string
+    type: string
 }
 
 export interface Channel {
@@ -20,21 +20,21 @@ export interface Channel {
 export interface ChannelSource {
     id: number,
     channel_id: number,
-    provider_id: number,
-    provider_channel: string
+    stream_id: number,
+    stream_channel: string
 }
 
 export interface ChannelSourceInternal {
     id: string, 
     name: string,
-    provider: number,
+    stream: number,
     logo?: string,
 
     endpoint: string
 }
 
 export interface EpgInternal {
-    provider: number,
+    stream: number,
     epg: Xmltv
 }
 

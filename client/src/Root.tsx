@@ -1,7 +1,8 @@
 import * as React from 'react';
 import { Link, Route, Routes } from 'react-router-dom';
 import { ChannelsLineup } from './Channels';
-import { ProviderManager } from './Providers';
+import { StreamManager } from './Streams';
+import { ChannelManager } from './Channel';
 
 // mount app on dom
 export const AppRoot = () => {
@@ -24,7 +25,10 @@ export const AppRoot = () => {
                                 <Link className="nav-link active" aria-current="page" to="/channels">Channels</Link>
                             </li>
                             <li className="nav-item">
-                                <Link className="nav-link" to="/providers">Providers</Link>
+                                <Link className="nav-link" to="/streams">Streams</Link>
+                            </li>
+                            <li className="nav-item">
+                                <Link className="nav-link" to="/epg">EPG</Link>
                             </li>
                             <li className="nav-item">
                                 <Link className="nav-link" to="/settings">Settings</Link>
@@ -36,8 +40,9 @@ export const AppRoot = () => {
 
             <Routes>
                 <Route path='/channels' element={<ChannelsLineup/>}/>
+                <Route path='/channels/:channelId' element={<ChannelManager/>}/>
 
-                <Route path='/providers' element={<ProviderManager/>}/>
+                <Route path='/streams' element={<StreamManager/>}/>
             </Routes>
         </div>
     );

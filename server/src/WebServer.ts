@@ -8,7 +8,7 @@ import { writeXmltv, XmltvChannel, XmltvProgramme, Xmltv } from '@iptv/xmltv';
 import { Advertise } from "./Advertise";
 import StreamManager from "./StreamManager";
 import { DatabaseEngine } from './DatabaseEngine';
-import { Channel, ChannelSource, EpgBuilder } from './types';
+import { Channel, ChannelSource, EpgBuilder, Stream } from './types';
 
 export default class WebServer {
     public static Run() {
@@ -33,33 +33,71 @@ export default class WebServer {
             res.send(webAppFile);
         });
 
-        fastify.get('/api/providers', async (req, res) => {
-            const providers = await DatabaseEngine.All(`SELECT * FROM providers;`);
+        fastify.get('/api/streams', async (req, res) => {
+            const streams = await DatabaseEngine.All(`SELECT * FROM streams;`);
 
-            res.send(providers);
+            res.send(streams);
         });
 
-        fastify.post('/api/providers', async (req, res) => {
+        fastify.post('/api/streams', async (req, res) => {
             const payload = req.body as any;
 
-            const providerId = await DatabaseEngine.Insert(`INSERT INTO providers (name, stream, epg, connections, last_updated, regex) VALUES (?, ?, ?, ?, ?, ?);`, [
+            console.log(payload)
+
+            const streamId = await DatabaseEngine.Insert('INSERT INTO streams (name, stream, connections, last_updated, type, regex) VALUES (?, ?, ?, ?, ?, ?);', [
                 payload.name,
                 payload.stream,
-                payload.epg,
                 Number(payload.connections),
                 0,
+                payload.type,
                 ''
             ]);
 
             res.send({
-                id: providerId,
+                id: streamId,
                 name: payload.name,
                 stream: payload.stream,
-                epg: payload.epg,
                 connections: Number(payload.connections),
                 last_updated: 0,
+                type: payload.type,
                 regex: ''
             });
+        });
+
+        fastify.delete('/api/streams/:streamId', async (req, res) => {
+            const params = req.params as any;
+
+            console.log(params)
+
+            await DatabaseEngine.RunSafe(`DELETE FROM streams WHERE id = ?;`, [params.streamId]);
+
+            res.send(true);
+        });
+
+        fastify.get('/api/streams/:streamId/sources', async (req, res) => {
+            const params = req.params as any;
+
+            const streams = await DatabaseEngine.AllSafe(`SELECT * FROM streams WHERE id = ?;`, [Number.parseInt(params.streamId)]) as Stream[];
+
+            if (streams.length == 0) {
+                console.warn(`the requested channel was not found`)
+
+                res.status(404);
+
+                res.send(404);
+
+                return;
+            }
+
+            const streamSources = StreamManager.streams.filter(i => i.stream === streams[0].id);
+
+            res.send(streamSources.map((i => {
+                return {
+                    id: i.id,
+                    name: i.name,
+                    stream: streams[0].id
+                }
+            })));
         });
 
         fastify.get('/api/channels', async (req, res) => {
@@ -68,22 +106,199 @@ export default class WebServer {
             res.send(channels);
         });
 
-        fastify.post('/api/channel', async (req, res) => {
+        fastify.post('/api/channels', async (req, res) => {
             const payload = req.body as any;
 
-            const providerId = await DatabaseEngine.Insert(`INSERT INTO channels (name, logo, channel_number) VALUES (?, ?, ?);`, [
+            console.log(payload)
+
+            const streamId = await DatabaseEngine.Insert(`INSERT INTO channels (name, logo, epg, channel_number) VALUES (?, ?, ?, ?);`, [
                 payload.name,
                 payload.logo,
+                'null',
                 Number(payload.channel_number)
             ]);
 
             res.send({
-                id: providerId,
+                id: streamId,
                 name: payload.name,
                 stream: payload.logo,
-                epg: payload.epg,
-                channel_number: Number(payload.connections)
+                epg: '',
+                channel_number: Number(payload.channel_number)
             });
+        });
+
+        fastify.get('/api/channels/:channelId', async (req, res) => {
+            const params = req.params as any;
+
+            const channels = await DatabaseEngine.All(`SELECT * FROM channels WHERE id = ${params.channelId};`) as Channel[];
+
+            if (channels.length === 0) {
+                console.warn(`the requested channel was not found`)
+
+                res.status(404);
+
+                res.send(404);
+
+                return;
+            }
+
+            const channel = channels[0];
+
+            const sources = await DatabaseEngine.All(`SELECT * FROM channel_source WHERE channel_id = ${channel.id};`) as ChannelSource[];
+
+            res.send({
+                ...channel,
+                sources: sources
+            })
+        });
+
+        fastify.put('/api/channels/:channelId/streams', async (req, res) => {
+            const params = req.params as any;
+            const body = req.body as any;
+
+            const channels = await DatabaseEngine.AllSafe('SELECT * FROM channels WHERE id = ?;', [params.channelId]) as Channel[];
+
+            if (channels.length === 0) {
+                console.warn(`the requested channel was not found`)
+
+                res.status(404);
+
+                res.send(404);
+
+                return;
+            }
+
+            const channel = channels[0];
+
+            const streams = await DatabaseEngine.All(`SELECT * FROM streams`) as Stream[];
+            const sources = await DatabaseEngine.AllSafe(`SELECT * FROM channel_source WHERE channel_id = ?`, [ channel.id ]) as ChannelSource[];
+
+            // loop through new provided streams
+            for(const sourceId of body.sources) {
+                const existingSource = sources.find(i => i.stream_channel === sourceId);
+
+                if (typeof existingSource !== 'undefined') {
+                    console.log(`[Piparr] Skipping add of source ${sourceId}`);
+
+                    continue;
+                }
+
+                const sourceStream = StreamManager.streams.find(i => i.id === sourceId);
+
+                if (typeof sourceStream === 'undefined') {
+                    res.status(400);
+
+                    res.send(`400, Stream ${sourceId} could not be validated`);
+                    
+                    return;
+                }
+
+                const parentStream = streams.find(i => i.id === sourceStream.stream);
+                
+                if (typeof parentStream === 'undefined') {
+                    res.status(400);
+
+                    res.send(`400, Stream ${sourceStream.stream} could not be validated`);
+
+                    return;
+                }
+
+                console.log(`[Piparr] Adding source ${sourceId} from ${sourceStream.name} into channel ${channel.name}`);
+
+                await DatabaseEngine.Insert(`INSERT INTO channel_source (stream_id, channel_id, stream_channel) VALUES (?, ?, ?);`, [
+                    sourceStream.stream,
+                    channel.id,
+                    sourceStream.id
+                ]);
+            }
+
+            // remove invalidated sources
+            for(const existingSource of sources) {
+                if (body.sources.includes(existingSource)) {
+                    console.log(`[Piparr] source ${existingSource.stream_id} from stream ${existingSource.stream_channel} validated`);
+
+                    continue;
+                }
+
+                await DatabaseEngine.RunSafe(`DELETE FROM channel_source WHERE id = ?;`, [ existingSource.id ]);
+
+                console.log(`[Piparr] source (id:${existingSource.id}) ${existingSource.stream_id} from stream ${existingSource.stream_channel} deleted`);
+            }
+
+            res.send(200)
+        });
+
+        fastify.delete('/api/channels/:channelId/streams', async (req, res) => {
+            const params = req.params as any;
+            const body = req.body as any;
+
+            const channels = await DatabaseEngine.AllSafe('SELECT * FROM channels WHERE id = ?;', [params.channelId]) as Channel[];
+
+            if (channels.length === 0) {
+                console.warn(`the requested channel was not found`)
+
+                res.status(404);
+
+                res.send(404);
+
+                return;
+            }
+
+            const channel = channels[0];
+
+            await DatabaseEngine.AllSafe(`DELETE FROM channel_source WHERE channel_id = ?`, [ channel.id ]) as ChannelSource[];
+            
+            res.send(200)
+        });
+
+        fastify.get('/api/channels/:channelId/streams', async (req, res) => {
+            const params = req.params as any;
+
+            const channels = await DatabaseEngine.AllSafe('SELECT * FROM channels WHERE id = ?;', [params.channelId]) as Channel[];
+
+            if (channels.length === 0) {
+                console.warn(`the requested channel was not found`)
+
+                res.status(404);
+
+                res.send(404);
+
+                return;
+            }
+
+            const channel = channels[0];
+
+            const sources = await DatabaseEngine.AllSafe(`SELECT * FROM channel_source WHERE channel_id = ?`, [ channel.id ]) as ChannelSource[];
+            const streams = await DatabaseEngine.All(`SELECT * FROM streams;`) as Stream[];
+
+            let selectedStreams : any[] = [];
+            let selectedSources: any[] = [];
+
+            for(const source of sources) {
+                const sourceStream = StreamManager.streams.find(i => i.id === source.stream_channel);
+
+                if (typeof sourceStream === 'undefined')
+                    continue;
+
+                const existingStream = selectedStreams.find(i => i.id !== sourceStream.id);
+
+                if (typeof existingStream === 'undefined') {
+                    const streamInfo = streams.find(i => i.id === source.stream_id);
+
+                    selectedStreams.push(streamInfo);
+                }
+    
+                selectedSources.push({
+                    id: source.stream_channel,
+                    name: sourceStream?.name || 'Unknown Stream Source',
+                    stream: source.stream_id
+                })
+            }
+            
+            res.send({
+                streams: selectedStreams,
+                sources: selectedSources
+            })
         });
 
         fastify.get('/channels/:number/video', async (req, res) => {
@@ -117,7 +332,7 @@ export default class WebServer {
 
             const channelSource = channelSources[0];
 
-            const sourceStreams = StreamManager.streams.filter(i => i.provider == channelSource.provider_id && i.id === channelSource.provider_channel);
+            const sourceStreams = StreamManager.streams.filter(i => i.stream == channelSource.stream_id && i.id === channelSource.stream_channel);
 
             if (sourceStreams.length === 0) {
                 console.warn(`could not fetch source streams`);
@@ -155,7 +370,7 @@ export default class WebServer {
                 if (typeof channelSource === 'undefined')
                     continue;
 
-                const epgSource = StreamManager.epg.find(i => i.provider === channelSource.provider_id);
+                const epgSource = StreamManager.epg.find(i => i.stream === channelSource.stream_id);
 
                 if (typeof epgSource === 'undefined')
                     continue;
@@ -163,14 +378,14 @@ export default class WebServer {
                 const epgChannels: XmltvChannel[] = epgSource.epg.channels || [];
                 const epgProgramsAll: XmltvProgramme[] = epgSource.epg.programmes || [];
 
-                const epgChannel = epgChannels.find(i => i.id === channelSource.provider_channel);
+                const epgChannel = epgChannels.find(i => i.id === channelSource.stream_channel);
 
                 if (typeof epgChannel === 'undefined')
                     continue;
 
-                console.log(`[Piparr] channel ${channel.channel_number} (${channel.name}, id=${channelSource.provider_channel}) has xmltv guide entry`)
+                console.log(`[Piparr] channel ${channel.channel_number} (${channel.name}, id=${channelSource.stream_channel}) has xmltv guide entry`)
 
-                const epgPrograms = epgProgramsAll.filter(i => i.channel === channelSource.provider_channel);
+                const epgPrograms = epgProgramsAll.filter(i => i.channel === channelSource.stream_channel);
 
                 epgBuilder.xmltv = epgSource.epg;
                 epgBuilder.channels.push(epgChannel);

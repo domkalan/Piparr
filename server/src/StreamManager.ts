@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { Worker } from 'node:worker_threads';
 
 import { parseM3U } from "@tunarr/playlist";
 import { parseXmltv, XmltvChannel } from '@iptv/xmltv';
@@ -9,8 +10,9 @@ import moment from 'moment';
 import Piparr from ".";
 
 import { DatabaseEngine } from "./DatabaseEngine";
-import { ChannelSourceInternal, EpgInternal, Provider } from "./types";
+import { ChannelSourceInternal, EpgInternal, Stream } from "./types";
 import { Timers } from './Timers';
+import { BackgroundThreading } from './BackgroundThreading';
 
 export default class StreamManager {
     public static streams : ChannelSourceInternal[] = [];
@@ -19,12 +21,11 @@ export default class StreamManager {
     public static async FetchStreams() {
         console.log(`[Piparr][StreamManager] fetching streams`);
         
-        // select all providers from database
-        const providers = await DatabaseEngine.All('SELECT * FROM providers;') as Provider[];
+        // select all streams from database
+        const streams = await DatabaseEngine.All('SELECT * FROM streams WHERE healthy = 1;') as Stream[];
 
-        // run operation with all providers
-        for(const provider of providers) {
-
+        // run operation with all streams
+        for(const stream of streams) {
             // calc current time
             const rightNow = new Date(Date.now());
             const expiredTime = moment(rightNow).subtract(6, 'hour');
@@ -33,31 +34,39 @@ export default class StreamManager {
             let lastUpdated = new Date(0);
             
             // if date exists, update date
-            if (typeof provider.last_updated !== 'undefined')
-                lastUpdated = new Date(provider.last_updated);
+            if (typeof stream.last_updated !== 'undefined')
+                lastUpdated = new Date(stream.last_updated);
 
             // set path where stream is stored
-            const streamsOut = path.resolve(Piparr.dataDir, `${provider.id}.m3u`);
+            const streamsOut = path.resolve(Piparr.dataDir, `${stream.id}.m3u`);
 
             // check if stream has been checked and that file exists
             if (expiredTime.isBefore(lastUpdated) && fs.existsSync(streamsOut)) {
-                console.log(`[Piparr][StreamManager] stream ${provider.name} was updated recently, skipping`);
+                console.log(`[Piparr][StreamManager] stream ${stream.name} was updated recently, will reparse from disk`);
 
                 // await until we are done parsing
-                await this.ParseStream(provider);
+                try {
+                    await this.ParseStream(stream);
+                } catch(error) {
+                    console.warn(`[Piparr][StreamManager] failed to parse ${stream.name}, will try again next task`);
 
-                // await until parse epg
-                await this.ParseEPG(provider);
+                    await DatabaseEngine.Run(`UPDATE streams SET healthy = 0 WHERE id = ${stream.id}`);
+
+                    this.ClearStreamData(stream.id);
+                }
 
                 continue;
             }
 
             try {
+                // update record in db
+                await DatabaseEngine.Run(`UPDATE streams SET last_updated = "${rightNow.toISOString()}" and healthy = 2 WHERE id = ${stream.id}`);
+
                 // notify will now update
-                console.log(`[Piparr][StreamManager] will now update stream ${provider.name}`);
+                console.log(`[Piparr][StreamManager] will now update stream ${stream.name}`);
 
                 // create http request
-                const response = await fetch(provider.stream, {
+                const response = await fetch(stream.stream, {
                     method: "GET"
                 });
 
@@ -68,36 +77,35 @@ export default class StreamManager {
                 fs.writeFileSync(streamsOut, body);
 
                 // notify update
-                console.log(`[Piparr][StreamManager] got updated streams for ${provider.name}`);
+                console.log(`[Piparr][StreamManager] got updated streams for ${stream.name}`);
 
                 // await until we are done parsing
-                await this.ParseStream(provider);
+                await this.ParseStream(stream);
 
-                // update record in db
-                await DatabaseEngine.Run(`UPDATE providers SET last_updated = "${rightNow.toISOString()}" WHERE id = ${provider.id}`);
+                // mark as healthy
+                await DatabaseEngine.Run(`UPDATE streams SET healthy = 1 WHERE id = ${stream.id}`);
 
-                // grab epg
-                await this.GrabEPG(provider);
-
-                // parse epg
-                await this.ParseEPG(provider);
-
-                // wait some time before next stream
-                await Timers.WaitFor(5000);
+                // wait
+                Timers.WaitFor(1000)
             } catch(error) {
-                console.warn(`[Piparr][StreamManager] failed to update ${provider.name}, will try again next task`);
+                console.warn(`[Piparr][StreamManager] failed to update ${stream.name}, will try again next task`);
+
+                await DatabaseEngine.Run(`UPDATE streams SET healthy = 0 WHERE id = ${stream.id}`);
+
+                this.ClearStreamData(stream.id);
             }
         }
     }
 
-    public static async GrabEPG(provider : Provider) {
-        console.log(`[Piparr][StreamManager] grabbing epg for provider ${provider.name}`)
+    public static async GrabEPG(stream : Stream) {
+        debugger;
+        /*console.log(`[Piparr][StreamManager] grabbing epg for stream ${stream.name}`);
 
         // set path where epg is stored
-        const epgOut = path.resolve(Piparr.dataDir, `${provider.id}-epg.xml`);
+        const epgOut = path.resolve(Piparr.dataDir, `${stream.id}-epg.xml`);
 
         // create http request
-        const response = await fetch(provider.epg, {
+        const response = await fetch(stream.epg, {
             method: "GET"
         });
 
@@ -106,61 +114,126 @@ export default class StreamManager {
 
         // write stream to file system
         fs.writeFileSync(epgOut, body);
+
+        return true;*/
     }
 
-    public static async ParseEPG(provider : Provider) {
-        console.log(`[Piparr][StreamManager] parsing epg for ${provider.name}`)
+    public static async ParseEPG(stream : Stream) {
+        debugger;
+        /*console.log(`[Piparr][StreamManager] parsing epg for ${stream.name}`)
 
-        const epgOut = path.resolve(Piparr.dataDir, `${provider.id}-epg.xml`);
+        const epgOut = path.resolve(Piparr.dataDir, `${stream.id}-epg.xml`);
 
         const epgFile = fs.readFileSync(epgOut).toString();
 
         const epgParsed = parseXmltv(epgFile);
 
-        const epgOutJson = path.resolve(Piparr.dataDir, `${provider.id}-epg.json`);
+        const epgOutJson = path.resolve(Piparr.dataDir, `${stream.id}-epg.json`);
 
         fs.writeFileSync(epgOutJson, JSON.stringify(epgParsed, null, 4));
 
         const epgUpdated: EpgInternal[] = [];
 
         epgUpdated.push({
-            provider: provider.id, epg: epgParsed
+            stream: stream.id, epg: epgParsed
         });
 
-        this.epg = this.epg.filter(i => i.provider !== provider.id).concat(epgUpdated);
+        this.epg = this.epg.filter(i => i.stream !== stream.id).concat(epgUpdated);
 
-        console.log(`[Piparr][StreamManager] grabbing epg for provider ${provider.name} returned ${(epgParsed.channels || []).length} channel(s)`)
+        console.log(`[Piparr][StreamManager] grabbing epg for stream ${stream.name} returned ${(epgParsed.channels || []).length} channel(s)`)*/
     }
 
-    public static async ParseStream(provider : Provider) {
-        console.log(`[Piparr][StreamManager] parsing streams for ${provider.name}`);
+    public static ParseStream(stream : Stream) : Promise<any> {
+        return new Promise((resolve, reject) => {
+            console.log(`[Piparr][StreamManager] parsing streams for ${stream.name}`);
 
-        const streamsOut = path.resolve(Piparr.dataDir, `${provider.id}.m3u`);
+            // Resolve the path to the output .m3u file
+            const streamsOut = path.resolve(Piparr.dataDir, `${stream.id}.m3u`);
 
-        const streamFile = fs.readFileSync(streamsOut);
+            // Read the content of the .m3u file
+            const streamFile = fs.readFileSync(streamsOut);
 
-        const m3u8 = parseM3U(streamFile.toString());
+            // Resolve the path to the output .json file
+            const streamsOutJson = path.resolve(Piparr.dataDir, `${stream.id}.json`);
 
-        const streamsOutJson = path.resolve(Piparr.dataDir, `${provider.id}.json`);
+            // Run the m3u8-parser worker script in a background thread
+            BackgroundThreading.Run(__dirname + '/workers/m3u8-parser.js', streamFile.toString(), (error, data) => {
+                if (error !== null) {
+                    console.error(`[Piparr][StreamManager][ERROR] stream ${stream.name} failed`, error);
 
-        fs.writeFileSync(streamsOutJson, JSON.stringify(m3u8, null, 4));
+                    // Reject the promise if an error occurs
+                    reject(error);
 
-        const newStreams: ChannelSourceInternal[] = [];
+                    return;
+                }
 
-        for(const channel of m3u8.channels) {
-            newStreams.push({
-                id: channel.tvgId as any,
-                name: channel.name as any,
-                provider: provider.id,
-                logo: channel.tvgLogo,
-                
-                endpoint: channel.url as any
-            });
+                // Write the parsed data to the .json file
+                fs.writeFileSync(streamsOutJson, JSON.stringify(data.m3u8, null, 4));
+
+                const newStreams: ChannelSourceInternal[] = [];
+
+                let streamId = 0;
+                // Iterate over each channel in the parsed m3u8 data
+                for(const channel of data.m3u8.channels) {
+                    console.log(`[Piparr][StreamManager] stream ${stream.name} contains stream ${streamId}`)
+                    
+                    // Default stream ID and name if not provided
+                    const streamId_default = `stream${stream.id}.source${streamId}`;
+                    const streamName_default = stream.name + ' Source #' + streamId;
+
+                    // Create a stream object with the parsed data
+                    const streamObject = {
+                        id: (channel.tvgId as any) || streamId_default,
+                        name: (channel.name as any) || streamName_default,
+                        stream: stream.id,
+                        logo: channel.tvgLogo,
+                        endpoint: channel.url as any
+                    }
+
+                    // Add the stream object to the newStreams array
+                    newStreams.push(streamObject);
+
+                    // If the stream type is 'direct', select the first stream and break the loop
+                    if (stream.type === 'direct') {
+                        /*const urlParser = new URL(channel.url);
+
+                        if (urlParser.pathname.endsWith('.m3u') || urlParser.pathname.endsWith('.m3u8')) {
+                            // Additional logic can be added here if needed
+                            streamObject.endpoint = ''
+                        }*/
+
+                        // TODO: this might not require break, look into it
+                        break;
+                    }
+
+                    streamId++;
+                }
+
+                console.log(`[Piparr][StreamManager] stream ${stream.name} contains ${newStreams.length} stream(s)`)
+
+                // Update the streams array with the new streams
+                this.streams = this.streams.filter(i => i.stream !== stream.id).concat(newStreams);
+
+                // Resolve the promise indicating success
+                resolve(true);
+            }, 60000); // Timeout for the background thread
+        })
+    }
+
+    // Remove streams from local disk
+    public static ClearStreamData(id : number) {
+        const streamsOut = path.resolve(Piparr.dataDir, `${id}.m3u`);
+
+        if (fs.existsSync(streamsOut)) {
+            fs.unlinkSync(streamsOut);
         }
 
-        console.log(`[Piparr][StreamManager] provider ${provider.name} contains ${newStreams.length} stream(s)`)
+        
+        const streamsOutJson = path.resolve(Piparr.dataDir, `${id}.json`);
 
-        this.streams = this.streams.filter(i => i.provider !== provider.id).concat(newStreams)
+        if (fs.existsSync(streamsOutJson)) {
+            fs.unlinkSync(streamsOutJson);
+        }
     }
 
     public static async MonitorStreams() {
