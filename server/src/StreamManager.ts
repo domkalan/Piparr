@@ -22,7 +22,7 @@ export default class StreamManager {
         console.log(`[Piparr][StreamManager] fetching streams`);
         
         // select all streams from database
-        const streams = await DatabaseEngine.All('SELECT * FROM streams WHERE healthy = 1 OR healthy = -1;') as Stream[];
+        const streams = await DatabaseEngine.AllSafe('SELECT * FROM streams WHERE healthy = ? OR healthy = ?;', [1, -1]) as Stream[];
 
         // run operation with all streams
         for(const stream of streams) {
@@ -50,7 +50,7 @@ export default class StreamManager {
                 } catch(error) {
                     console.warn(`[Piparr][StreamManager] failed to parse ${stream.name}, will try again next task`);
 
-                    await DatabaseEngine.Run(`UPDATE streams SET healthy = 0 WHERE id = ${stream.id}`);
+                    await DatabaseEngine.RunSafe('UPDATE streams SET healthy = 0 WHERE id = ?', [ stream.id ]);
 
                     this.ClearStreamData(stream.id);
                 }
@@ -60,7 +60,7 @@ export default class StreamManager {
 
             try {
                 // update record in db
-                await DatabaseEngine.Run(`UPDATE streams SET last_updated = "${rightNow.toISOString()}" and healthy = 2 WHERE id = ${stream.id}`);
+                await DatabaseEngine.RunSafe('UPDATE streams SET last_updated = ? and healthy = ? WHERE id = ?', [ rightNow.toISOString(), 2, stream.id ]);
 
                 // notify will now update
                 console.log(`[Piparr][StreamManager] will now update stream ${stream.name}`);
@@ -83,14 +83,14 @@ export default class StreamManager {
                 await this.ParseStream(stream);
 
                 // mark as healthy
-                await DatabaseEngine.Run(`UPDATE streams SET healthy = 1 WHERE id = ${stream.id}`);
+                await DatabaseEngine.RunSafe('UPDATE streams SET healthy = 1 WHERE id = ?', stream.id);
 
                 // wait
                 Timers.WaitFor(1000)
             } catch(error) {
                 console.warn(`[Piparr][StreamManager] failed to update ${stream.name}, will try again next task`);
 
-                await DatabaseEngine.Run(`UPDATE streams SET healthy = 0 WHERE id = ${stream.id}`);
+                await DatabaseEngine.RunSafe('UPDATE streams SET healthy = 0 WHERE id = ?', [ stream.id ]);
 
                 this.ClearStreamData(stream.id);
             }

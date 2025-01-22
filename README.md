@@ -8,11 +8,11 @@ Sure, [xTeve](https://github.com/xteve-project/xTeVe) and [TellyTV](https://gith
 
 ### Todo
 - [x] - Get client UI working.
+- [x] - Cleanup code, protect against sql injections.
 - [ ] - Parse streams and EPG/XMLTV on a separate thread. *(in progress)*
-- [ ] - Cleanup code, protect against sql injections. *(in progress)*
+- [ ] - Regex filtering for large stream providers.
 - [ ] - Document code, create a wiki, also create an install guide. *(in progress)*
 - [ ] - Client UI needs to be secured via a password, http auth, token.
-- [ ] - Regex filtering for large stream providers.
 - [ ] - Implement stream modes, redirect, proxy, local transcode (via ffmpeg).
 - [ ] - Implement connection tracking, don't allow more than allowed streams for provider.
 - [ ] - Periodically save parsed streams to disk for faster startup.

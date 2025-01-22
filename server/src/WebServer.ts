@@ -48,7 +48,7 @@ export default class WebServer {
         //#region API Routes
         // API route to return streams
         fastify.get('/api/streams', async (req, res) => {
-            const streams = await DatabaseEngine.All(`SELECT * FROM streams;`);
+            const streams = await DatabaseEngine.AllSafe('SELECT * FROM streams;', []);
 
             res.send(streams);
         });
@@ -81,7 +81,7 @@ export default class WebServer {
         fastify.delete('/api/streams/:streamId', async (req, res) => {
             const params = req.params as any;
 
-            const channelsUsing = await DatabaseEngine.AllSafe(`SELECT * FROM channel_source WHERE stream_id = ?;`, [params.streamId]) as ChannelSource[];
+            const channelsUsing = await DatabaseEngine.AllSafe('SELECT * FROM channel_source WHERE stream_id = ?;', [params.streamId]) as ChannelSource[];
 
             if (channelsUsing.length > 0) {
                 res.status(400);
@@ -91,7 +91,7 @@ export default class WebServer {
                 return;
             }
 
-            await DatabaseEngine.RunSafe(`DELETE FROM streams WHERE id = ?;`, [params.streamId]);
+            await DatabaseEngine.RunSafe('DELETE FROM streams WHERE id = ?;', [params.streamId]);
 
             res.send(true);
         });
@@ -100,7 +100,7 @@ export default class WebServer {
         fastify.post('/api/streams/:streamId/resetHealth', async (req, res) => {
             const params = req.params as any;
 
-            const streams = await DatabaseEngine.AllSafe(`SELECT * FROM streams WHERE id = ?;`, [params.streamId]) as Stream[];
+            const streams = await DatabaseEngine.AllSafe('SELECT * FROM streams WHERE id = ?;', [params.streamId]) as Stream[];
 
             if (streams.length === 0) {
                 console.warn(`the requested stream was not found`)
@@ -112,7 +112,7 @@ export default class WebServer {
                 return;
             }
 
-            await DatabaseEngine.RunSafe(`UPDATE streams SET healthy = -1 WHERE id = ?`, [ params.streamId ]);
+            await DatabaseEngine.RunSafe('UPDATE streams SET healthy = -1 WHERE id = ?', [ params.streamId ]);
 
             res.send(true);
         });
@@ -121,7 +121,7 @@ export default class WebServer {
         fastify.get('/api/streams/:streamId/sources', async (req, res) => {
             const params = req.params as any;
 
-            const streams = await DatabaseEngine.AllSafe(`SELECT * FROM streams WHERE id = ?;`, [Number.parseInt(params.streamId)]) as Stream[];
+            const streams = await DatabaseEngine.AllSafe('SELECT * FROM streams WHERE id = ?;', [Number.parseInt(params.streamId)]) as Stream[];
 
             if (streams.length == 0) {
                 console.warn(`the requested channel was not found`)
@@ -146,7 +146,7 @@ export default class WebServer {
 
         // API route to get channels created
         fastify.get('/api/channels', async (req, res) => {
-            const channels = await DatabaseEngine.All(`SELECT * FROM channels;`);
+            const channels = await DatabaseEngine.AllSafe('SELECT * FROM channels;', []);
 
             res.send(channels);
         });
@@ -155,7 +155,7 @@ export default class WebServer {
         fastify.post('/api/channels', async (req, res) => {
             const payload = req.body as any;
 
-            const streamId = await DatabaseEngine.Insert(`INSERT INTO channels (name, logo, epg, channel_number) VALUES (?, ?, ?, ?);`, [
+            const streamId = await DatabaseEngine.Insert('INSERT INTO channels (name, logo, epg, channel_number) VALUES (?, ?, ?, ?);', [
                 payload.name,
                 payload.logo,
                 'null',
@@ -175,7 +175,7 @@ export default class WebServer {
         fastify.get('/api/channels/:channelId', async (req, res) => {
             const params = req.params as any;
 
-            const channels = await DatabaseEngine.All(`SELECT * FROM channels WHERE id = ${params.channelId};`) as Channel[];
+            const channels = await DatabaseEngine.AllSafe('SELECT * FROM channels WHERE id = ?;', [ params.channelId ]) as Channel[];
 
             if (channels.length === 0) {
                 console.warn(`the requested channel was not found`)
@@ -189,7 +189,7 @@ export default class WebServer {
 
             const channel = channels[0];
 
-            const sources = await DatabaseEngine.All(`SELECT * FROM channel_source WHERE channel_id = ${channel.id};`) as ChannelSource[];
+            const sources = await DatabaseEngine.AllSafe('SELECT * FROM channel_source WHERE channel_id = ?;', [ channel.id ]) as ChannelSource[];
 
             res.send({
                 ...channel,
@@ -217,10 +217,10 @@ export default class WebServer {
             const channel = channels[0];
 
             // fetch all streams
-            const streams = await DatabaseEngine.All(`SELECT * FROM streams`) as Stream[];
+            const streams = await DatabaseEngine.AllSafe('SELECT * FROM streams', []) as Stream[];
 
             // fetch all current sources for this channel
-            const sources = await DatabaseEngine.AllSafe(`SELECT * FROM channel_source WHERE channel_id = ?`, [ channel.id ]) as ChannelSource[];
+            const sources = await DatabaseEngine.AllSafe('SELECT * FROM channel_source WHERE channel_id = ?', [ channel.id ]) as ChannelSource[];
 
             // loop through new provided streams
             for(const sourceId of body.sources) {
@@ -255,7 +255,7 @@ export default class WebServer {
 
                 console.log(`[Piparr] Adding source ${sourceId} from ${sourceStream.name} into channel ${channel.name}`);
 
-                await DatabaseEngine.Insert(`INSERT INTO channel_source (stream_id, channel_id, stream_channel) VALUES (?, ?, ?);`, [
+                await DatabaseEngine.Insert('INSERT INTO channel_source (stream_id, channel_id, stream_channel) VALUES (?, ?, ?);', [
                     sourceStream.stream,
                     channel.id,
                     sourceStream.id
@@ -270,7 +270,7 @@ export default class WebServer {
                     continue;
                 }
 
-                await DatabaseEngine.RunSafe(`DELETE FROM channel_source WHERE id = ?;`, [ existingSource.id ]);
+                await DatabaseEngine.RunSafe('DELETE FROM channel_source WHERE id = ?;', [ existingSource.id ]);
 
                 console.log(`[Piparr] source (id:${existingSource.id}) ${existingSource.stream_id} from stream ${existingSource.stream_channel} deleted`);
             }
@@ -297,9 +297,9 @@ export default class WebServer {
 
             const channel = channels[0];
 
-            await DatabaseEngine.AllSafe(`DELETE FROM channels WHERE id = ?`, [ channel.id ]) as ChannelSource[];
+            await DatabaseEngine.AllSafe('DELETE FROM channels WHERE id = ?', [ channel.id ]) as ChannelSource[];
 
-            await DatabaseEngine.AllSafe(`DELETE FROM channel_source WHERE channel_id = ?`, [ channel.id ]) as ChannelSource[];
+            await DatabaseEngine.AllSafe('DELETE FROM channel_source WHERE channel_id = ?', [ channel.id ]) as ChannelSource[];
             
             res.send(200)
         });
@@ -323,7 +323,7 @@ export default class WebServer {
 
             const channel = channels[0];
 
-            await DatabaseEngine.AllSafe(`DELETE FROM channel_source WHERE channel_id = ?`, [ channel.id ]) as ChannelSource[];
+            await DatabaseEngine.AllSafe('DELETE FROM channel_source WHERE channel_id = ?', [ channel.id ]) as ChannelSource[];
             
             res.send(200)
         });
@@ -347,10 +347,10 @@ export default class WebServer {
             const channel = channels[0];
 
             // fetch all streams
-            const streams = await DatabaseEngine.All(`SELECT * FROM streams`) as Stream[];
+            const streams = await DatabaseEngine.AllSafe('SELECT * FROM streams;', []) as Stream[];
 
             // fetch all current sources for this channel
-            const sources = await DatabaseEngine.AllSafe(`SELECT * FROM channel_source WHERE channel_id = ?`, [ channel.id ]) as ChannelSource[];
+            const sources = await DatabaseEngine.AllSafe('SELECT * FROM channel_source WHERE channel_id = ?', [ channel.id ]) as ChannelSource[];
 
             let selectedStreams : any[] = [];
             let selectedSources: any[] = [];
@@ -389,7 +389,7 @@ export default class WebServer {
         fastify.get('/channels/:number/video', async (req, res) => {
             const params = req.params as any;
 
-            const channels = await DatabaseEngine.All(`SELECT * FROM channels WHERE channel_number = ${params.number};`) as Channel[];
+            const channels = await DatabaseEngine.AllSafe('SELECT * FROM channels WHERE channel_number = ?;', [params.number]) as Channel[];
 
             if (channels.length === 0) {
                 console.warn(`the requested channel was not found`)
@@ -403,7 +403,7 @@ export default class WebServer {
 
             const channel = channels[0];
 
-            const channelSources = await DatabaseEngine.All(`SELECT * FROM channel_source WHERE channel_id = ${channel.id};`) as ChannelSource[];
+            const channelSources = await DatabaseEngine.AllSafe('SELECT * FROM channel_source WHERE channel_id = ?;', [ channel.id ]) as ChannelSource[];
 
             if (channelSources.length === 0) {
                 console.warn(`no sources exist for the channel`)
@@ -438,11 +438,11 @@ export default class WebServer {
         fastify.get('/guide.xml', async (req, res) => {
             console.log(`[Piparr] Request to build guide`);
 
-            const channels = await DatabaseEngine.All(`SELECT * FROM channels;`) as Channel[];
+            const channels = await DatabaseEngine.AllSafe('SELECT * FROM channels;', []) as Channel[];
 
             console.log(`[Piparr] Will build guide for ${channels.length} channel(s)`);
 
-            const channelSources = await DatabaseEngine.All(`SELECT * FROM channel_source;`) as ChannelSource[];
+            const channelSources = await DatabaseEngine.AllSafe('SELECT * FROM channel_source;', []) as ChannelSource[];
 
             const epgBuilder: EpgBuilder = {
                 channels: [],
@@ -519,7 +519,7 @@ export default class WebServer {
 
         // Display the lineup we have enabled to emulate an HDHomeRUn device
         fastify.get('/lineup.json', async (req, res) => {
-            const storedChannels = await DatabaseEngine.All(`SELECT * FROM channels;`) as Channel[];
+            const storedChannels = await DatabaseEngine.AllSafe('SELECT * FROM channels;', []) as Channel[];
 
             const lineup: any[] = [];
 
