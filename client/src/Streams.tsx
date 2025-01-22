@@ -63,6 +63,12 @@ export const StreamManager = () => {
 
         const providerRes : any = await providerReq.json();
 
+        if (typeof providerRes.error !== 'undefined') {
+            alert(providerRes.error)
+
+            return;
+        }
+
         setStreams(streams.filter(i => i.id !== id))
     }
 

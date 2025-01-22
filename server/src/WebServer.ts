@@ -81,6 +81,16 @@ export default class WebServer {
         fastify.delete('/api/streams/:streamId', async (req, res) => {
             const params = req.params as any;
 
+            const channelsUsing = await DatabaseEngine.AllSafe(`SELECT * FROM channel_source WHERE stream_id = ?;`, [params.streamId]) as ChannelSource[];
+
+            if (channelsUsing.length > 0) {
+                res.status(400);
+
+                res.send({ error: 'Can not delete stream, stream has sources used by channels.' })
+
+                return;
+            }
+
             await DatabaseEngine.RunSafe(`DELETE FROM streams WHERE id = ?;`, [params.streamId]);
 
             res.send(true);
