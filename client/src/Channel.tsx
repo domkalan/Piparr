@@ -19,6 +19,7 @@ export const ChannelManager = () => {
 
     const params = useParams<any>();
 
+    // fetch channel info
     const fetchChannel = async () => {
         const channelReq = await fetch('/api/channels/' + (params as any).channelId);
         const channelRes = await channelReq.json();
@@ -26,10 +27,12 @@ export const ChannelManager = () => {
         setChannel(channelRes);
     }
 
+    // fetch stream info for all of streams
     const fetchStreams = async () => {
         const channelReq = await fetch('/api/streams');
         const channelRes = await channelReq.json();
 
+        // we need to do a map to show stream health
         setStreams(channelRes.map((i : any) => { 
             let status = 'Healthy';
 
@@ -43,6 +46,7 @@ export const ChannelManager = () => {
         }));
     }
 
+    // fetch all sources for streams
     const fetchStreamSources = async () => {
         const sourcesReq = await fetch('/api/channels/' + (params as any).channelId + '/streams');
         const sourcesRes = await sourcesReq.json();
@@ -62,6 +66,7 @@ export const ChannelManager = () => {
         }));
     }
 
+    // get sources for streams that we wish to use for our channel
     const fetchStreamSourcesForSelected = async (selected: any[]) => {
         setSelectedStreams(selected);
 
@@ -83,6 +88,7 @@ export const ChannelManager = () => {
         setStreamSources(sources);
     }
 
+    // send a PUT request to update the stream sources for this channel
     const updateChannelSources = async (event: React.FormEvent<Element>) => {
         event.preventDefault();
 
@@ -97,6 +103,7 @@ export const ChannelManager = () => {
         const channelRes : any = await channelReq.json();
     }
 
+    // Delete the channel stream sources, clean wipe
     const deleteChannelSources = async (event: React.FormEvent<Element>) => {
         event.preventDefault();
 
@@ -110,7 +117,7 @@ export const ChannelManager = () => {
         setSelectedStreams([]);
     }
 
-    
+    // Get the basic channel info
     const fetchChannelData = async () => {
         await fetchStreams()
 

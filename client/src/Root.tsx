@@ -4,7 +4,7 @@ import { ChannelsLineup } from './Channels';
 import { StreamManager } from './Streams';
 import { ChannelManager } from './Channel';
 
-// mount app on dom
+// mount app on dom, provide basic web app frame
 export const AppRoot = () => {
     return(
         <div>

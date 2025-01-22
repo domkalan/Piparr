@@ -4,6 +4,7 @@ import { FormDataCommon } from './common/FormDataCommon';
 export const StreamManager = () => {
     const [streams, setStreams] = React.useState<any[]>([]);
 
+    // fetch all streams, add health to display on label
     const fetchStreams = async () => {
         const providerReq = await fetch('/api/streams');
         const providerRes = await providerReq.json();
@@ -28,6 +29,8 @@ export const StreamManager = () => {
         }));
     }
 
+    // TODO: rename provider to streams
+    // add a new provider (stream)
     const addProvider = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
 
@@ -50,6 +53,7 @@ export const StreamManager = () => {
         setStreams(([] as any).concat(streams, [ providerRes ]))
     }
 
+    // delete a provider (stream)
     const deleteProvider = async(event : React.MouseEvent<Element>, id : string) => {
         event.preventDefault();
 
@@ -62,6 +66,7 @@ export const StreamManager = () => {
         setStreams(streams.filter(i => i.id !== id))
     }
 
+    // reset health on a provider
     const resetProvider = async(event : React.MouseEvent<Element>, id : string) => {
         event.preventDefault();
 
@@ -76,6 +81,7 @@ export const StreamManager = () => {
         }, 500)
     }
 
+    // Confirm that you want to delete a stream
     const confirmDeleteProvider = async (event : React.MouseEvent<Element>, id : string) => {
         if (confirm(`Are you sure you want to delete provider ${id}?`)) {
             await deleteProvider(event, id);

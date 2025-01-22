@@ -5,6 +5,7 @@ import { FormDataCommon } from './common/FormDataCommon';
 export const ChannelsLineup = () => {
     const [channels, setChannels] = React.useState<any[]>([]);
 
+    // Get all channels
     const fetchChannels = async () => {
         const channelReq = await fetch('/api/channels');
         const channelRes = await channelReq.json();
@@ -12,6 +13,7 @@ export const ChannelsLineup = () => {
         setChannels(channelRes);
     }
 
+    // Create a channel
     const addChannel = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
 
@@ -34,6 +36,7 @@ export const ChannelsLineup = () => {
         setChannels(([] as any).concat(channels, [ channelRes ]))
     }
 
+    // Request a channel be deleted
     const deleteChannel = async(event : React.MouseEvent<Element>, id : string) => {
         event.preventDefault();
 
@@ -46,6 +49,7 @@ export const ChannelsLineup = () => {
         setChannels(channels.filter(i => i.id !== id))
     }
 
+    // Confirm we want to delete the channel
     const confirmDeleteChannel = async (event : React.MouseEvent<Element>, id : string) => {
         if (confirm(`Are you sure you want to delete channel id ${id}?`)) {
             await deleteChannel(event, id);
