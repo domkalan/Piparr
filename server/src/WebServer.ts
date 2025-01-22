@@ -42,8 +42,6 @@ export default class WebServer {
         fastify.post('/api/streams', async (req, res) => {
             const payload = req.body as any;
 
-            console.log(payload)
-
             const streamId = await DatabaseEngine.Insert('INSERT INTO streams (name, stream, connections, last_updated, type, regex) VALUES (?, ?, ?, ?, ?, ?);', [
                 payload.name,
                 payload.stream,
@@ -67,8 +65,6 @@ export default class WebServer {
         fastify.delete('/api/streams/:streamId', async (req, res) => {
             const params = req.params as any;
 
-            console.log(params)
-
             await DatabaseEngine.RunSafe(`DELETE FROM streams WHERE id = ?;`, [params.streamId]);
 
             res.send(true);
@@ -76,8 +72,6 @@ export default class WebServer {
 
         fastify.post('/api/streams/:streamId/resetHealth', async (req, res) => {
             const params = req.params as any;
-
-            console.log(params)
 
             const streams = await DatabaseEngine.AllSafe(`SELECT * FROM streams WHERE id = ?;`, [params.streamId]) as Stream[];
 
@@ -130,8 +124,6 @@ export default class WebServer {
 
         fastify.post('/api/channels', async (req, res) => {
             const payload = req.body as any;
-
-            console.log(payload)
 
             const streamId = await DatabaseEngine.Insert(`INSERT INTO channels (name, logo, epg, channel_number) VALUES (?, ?, ?, ?);`, [
                 payload.name,

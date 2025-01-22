@@ -47,8 +47,6 @@ export const ChannelManager = () => {
         const sourcesReq = await fetch('/api/channels/' + (params as any).channelId + '/streams');
         const sourcesRes = await sourcesReq.json();
 
-        console.log(sourcesRes)
-
         setStreamSources(sourcesRes.sources);
         setSelectedSources(sourcesRes.sources);
         setSelectedStreams(sourcesRes.streams.map((i : any) => { 
@@ -66,8 +64,6 @@ export const ChannelManager = () => {
 
     const fetchStreamSourcesForSelected = async (selected: any[]) => {
         setSelectedStreams(selected);
-
-        console.log(selected)
 
         // remove any sources from deselected streams
         const selectedSourcesUpdated = selectedSources.filter(i => selected.filter(ii => ii.id === i.stream).length > 0);
