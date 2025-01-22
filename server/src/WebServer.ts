@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import Fastify from 'fastify';
 import FastifyStatic from '@fastify/static';
 import { writeXmltv, XmltvChannel, XmltvProgramme, Xmltv } from '@iptv/xmltv';
+import ffmpeg from 'fluent-ffmpeg';
 
 import { Advertise } from "./Advertise";
 import StreamManager from "./StreamManager";
@@ -431,7 +432,99 @@ export default class WebServer {
             
             const sourceStream = sourceStreams[0];
 
+            const urlParser = new URL(sourceStream.endpoint);
+
+            if (urlParser.pathname.endsWith('.m3u') || urlParser.pathname.endsWith('.m3u8')) {
+                res.redirect(`/channels/${params.number}/video-transcode`, 302);
+
+                return;
+            }
+
             res.redirect(sourceStream.endpoint, 302);
+        });
+
+        // Attempt to encode video on the fly (EXPERIMENTAL)
+        fastify.get('/channels/:number/video-transcode', async (req, res) => {
+            const params = req.params as any;
+
+            const channels = await DatabaseEngine.AllSafe('SELECT * FROM channels WHERE channel_number = ?;', [params.number]) as Channel[];
+
+            if (channels.length === 0) {
+                console.warn(`the requested channel was not found`)
+
+                res.status(404);
+
+                res.send(404);
+
+                return;
+            }
+
+            const channel = channels[0];
+
+            const channelSources = await DatabaseEngine.AllSafe('SELECT * FROM channel_source WHERE channel_id = ?;', [ channel.id ]) as ChannelSource[];
+
+            if (channelSources.length === 0) {
+                console.warn(`no sources exist for the channel`)
+
+                res.status(500);
+
+                res.send(500);
+
+                return;
+            }
+
+            const channelSource = channelSources[0];
+
+            const sourceStreams = StreamManager.streams.filter(i => i.stream == channelSource.stream_id && i.id === channelSource.stream_channel);
+
+            if (sourceStreams.length === 0) {
+                console.warn(`could not fetch source streams`);
+
+                res.status(500);
+
+                res.send(500);
+
+                return;
+            }
+            
+            const sourceStream = sourceStreams[0];
+
+            const urlParser = new URL(sourceStream.endpoint);
+
+            try {
+                console.log(`[Piparr] attempting to spin up live ffmpeg transcoder for ${sourceStream.endpoint}`);
+
+                const ffmpegProcess = ffmpeg(sourceStream.endpoint)
+                .inputOptions(['-re']) // Read input at native frame rate
+                .outputOptions([
+                    '-c:v libx264', // Transcode video to H.264
+                    '-preset veryfast', // Use fast preset for low-latency
+                    '-tune zerolatency', // Optimize for streaming
+                    '-c:a aac', // Transcode audio to AAC
+                    '-b:v 1500k', // Video bitrate
+                    '-b:a 128k', // Audio bitrate
+                    '-f mp4', // Output format
+                    '-movflags frag_keyframe+empty_moov', // Make MP4 streamable
+                ])
+                .on('error', (err, stdout, stderr) => {
+                    console.error('[Piparr] FFmpeg error:', err.message);
+                })
+                .on('end', () => {
+                    console.log('[Piparr] FFmpeg finished');
+                });
+
+                res.headers({
+                    'Content-Type': 'video/mp4',
+                    'Cache-Control': 'no-cache',
+                    'Transfer-Encoding': 'chunked',
+                    'Connection': 'keep-alive',
+                });
+
+                return res.send(ffmpegProcess)
+            } catch(error) {
+                console.error('Error:', error);
+                res.code(500).send({ error: 'Failed to start transcoding' });
+            }
         });
 
         // Generate the EPG data into an XMLTV output

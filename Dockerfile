@@ -1,8 +1,11 @@
-FROM node:18
+FROM alpine:edge
 
 WORKDIR /app
 
 COPY . ./
+
+RUN apk update && \
+apk add nodejs npm ffmpeg
 
 RUN npm install && \
 npm run build
