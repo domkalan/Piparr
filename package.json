@@ -8,6 +8,7 @@
     "moment": "^2.30.1",
     "node-ssdp": "^1.0.0",
     "react-bootstrap-typeahead": "^6.3.4",
+    "rimraf": "^6.0.1",
     "sqlite3": "^5.1.7"
   },
   "devDependencies": {
@@ -30,13 +31,14 @@
     "webpack-cli": "^5.1.4"
   },
   "name": "piparr",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "M3U/IPTV Proxy Server",
   "main": "dist/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build-server": "tsc server/src/index.ts --outDir ./dist --esModuleInterop",
+    "build-server": "tsc server/src/index.ts --outDir ./dist --esModuleInterop && npm run build-workers",
     "build-client": "webpack",
+    "build-workers": "node scripts/build-workers.js",
     "build": "npm run build-server && npm run build-client",
     "start": "node dist/index.js"
   },
