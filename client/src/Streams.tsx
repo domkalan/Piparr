@@ -8,7 +8,24 @@ export const StreamManager = () => {
         const providerReq = await fetch('/api/streams');
         const providerRes = await providerReq.json();
 
-        setStreams(providerRes);
+        setStreams(providerRes.map((i : any) => {
+            let providerState = 'Unknown State'
+
+            if (i.healthy === 0) {
+                providerState = 'Failed'
+            } else if (i.healthy === 1) {
+                providerState = 'Healthy'
+            } else if (i.healthy === 2) {
+                providerState = 'Refreshing'
+            } else if (i.healthy === -1) {
+                providerState = 'Retrying'
+            }
+
+            return {
+                ...i,
+                healthState: providerState
+            }
+        }));
     }
 
     const addProvider = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -43,6 +60,20 @@ export const StreamManager = () => {
         const providerRes : any = await providerReq.json();
 
         setStreams(streams.filter(i => i.id !== id))
+    }
+
+    const resetProvider = async(event : React.MouseEvent<Element>, id : string) => {
+        event.preventDefault();
+
+        const providerReq = await fetch('/api/streams/' + id + '/resetHealth', {
+            method: 'POST'
+        });
+
+        const providerRes = await providerReq.json();
+
+        setTimeout(() => {
+            fetchStreams();
+        }, 500)
     }
 
     const confirmDeleteProvider = async (event : React.MouseEvent<Element>, id : string) => {
@@ -81,8 +112,8 @@ export const StreamManager = () => {
                                         <tr>
                                             <th scope="row">{provider.id}</th>
                                             <td>{provider.name}</td>
-                                            <td>{provider.healthy === 1 && <span>Healthy</span>}{provider.healthy === 0 && <span style={{ color: 'red' }}>Failed</span>}{provider.healthy === 2 && <span>Refreshing</span>}</td>
-                                            <td><a href="#" onClick={e => confirmDeleteProvider(e, provider.id)}>Delete</a></td>
+                                            <td>{provider.healthState}</td>
+                                            <td><a href="#" onClick={e => resetProvider(e, provider.id)}>Rescan</a> <a href="#" onClick={e => confirmDeleteProvider(e, provider.id)}>Delete</a></td>
                                         </tr>
                                     );
                                 })}

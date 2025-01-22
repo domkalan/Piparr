@@ -74,6 +74,28 @@ export default class WebServer {
             res.send(true);
         });
 
+        fastify.post('/api/streams/:streamId/resetHealth', async (req, res) => {
+            const params = req.params as any;
+
+            console.log(params)
+
+            const streams = await DatabaseEngine.AllSafe(`SELECT * FROM streams WHERE id = ?;`, [params.streamId]) as Stream[];
+
+            if (streams.length === 0) {
+                console.warn(`the requested stream was not found`)
+
+                res.status(404);
+
+                res.send(404);
+
+                return;
+            }
+
+            await DatabaseEngine.RunSafe(`UPDATE streams SET healthy = -1 WHERE id = ?`, [ params.streamId ]);
+
+            res.send(true);
+        });
+
         fastify.get('/api/streams/:streamId/sources', async (req, res) => {
             const params = req.params as any;
 
