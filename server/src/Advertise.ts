@@ -1,5 +1,8 @@
 import { Server as SSDP } from 'node-ssdp';
 
+/**
+ * SSDP Advertising Service
+ */
 export class Advertise {
   private server: SSDP;
 

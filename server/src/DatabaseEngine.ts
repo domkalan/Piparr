@@ -2,9 +2,18 @@ import path from 'node:path';
 
 import sqlite3 from "sqlite3";
 
+/**
+ * DatabaseEngine
+ * 
+ * Easy interface for SQLite3.
+ */
 export abstract class DatabaseEngine {
     public static instance: sqlite3.Database;
 
+    /**
+     * Init ensures the database exists and contains tables and basic settings
+     * @returns void 
+     */
     public static Init() {
         return new Promise((resolve, reject) => {
             const databasePath = path.resolve('./data/app.db');
@@ -33,6 +42,12 @@ export abstract class DatabaseEngine {
         })
     }
 
+    /**
+     * Run a SQL query
+     * @param sql 
+     * @returns 
+     * @deprecated Use RunSafe instead to prevent against SQL injection.
+     */
     public static Run(sql: string) {
         return new Promise((resolve, reject) => {
             console.log(`[Piparr][database][async][run] running ${sql}`)
@@ -49,6 +64,11 @@ export abstract class DatabaseEngine {
         })
     }
 
+    /**
+     * Run a SQL query with variable safety
+     * @param sql 
+     * @returns
+     */
     public static RunSafe(sql: string, object: any) {
         return new Promise((resolve, reject) => {
             console.log(`[Piparr][database][async][run] running ${sql}`)
@@ -65,6 +85,12 @@ export abstract class DatabaseEngine {
         })
     }
 
+    /**
+     * Run a SQL insert with variable safety
+     * @param sql 
+     * @param object
+     * @returns
+     */
     public static Insert(sql: string, object: any) {
         return new Promise((resolve, reject) => {
             console.log(`[Piparr][database][async][run] running ${sql}`)
@@ -81,6 +107,11 @@ export abstract class DatabaseEngine {
         })
     }
 
+    /**
+     * Run a SQL update
+     * @param sql 
+     * @returns
+     */
     public static Update(sql: string, object: any) {
         return new Promise((resolve, reject) => {
             console.log(`[Piparr][database][async][run] running ${sql}`)
@@ -97,6 +128,13 @@ export abstract class DatabaseEngine {
         })
     }
 
+    /**
+     * Run an SQL query and return all
+     * @param sql 
+     * @param object
+     * @returns 
+     * @deprecated Use AllSafe to prevent against sql injection
+     */
     public static All(sql: string) {
         return new Promise((resolve, reject) => {
             console.log(`[Piparr][database][async][all] running ${sql}`)
@@ -113,6 +151,12 @@ export abstract class DatabaseEngine {
         })
     }
 
+    /**
+     * Run an SQL query and return all
+     * @param sql 
+     * @param object
+     * @returns
+     */
     public static AllSafe(sql: string, object: any) {
         return new Promise((resolve, reject) => {
             console.log(`[Piparr][database][async][all] running ${sql}`)
@@ -129,6 +173,9 @@ export abstract class DatabaseEngine {
         })
     }
 
+    /**
+     * Create default tables when database is initialized
+     */
     private static async CreateTables() {
         await this.Run(`CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,

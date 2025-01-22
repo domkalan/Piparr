@@ -6,9 +6,13 @@ import WebServer from "./WebServer";
 import fs from 'node:fs';
 import path from 'node:path';
 
+/**
+ * Main application for Piparr
+ */
 export default class Piparr {
     public static dataDir: string;
 
+    // make sure data directory exists
     public static async CreateDirectories() {
         const dataPath = path.resolve('./data');
 
@@ -19,19 +23,26 @@ export default class Piparr {
         this.dataDir = dataPath;
     }
 
+    // main init function
     public static async main() : Promise<void> {
+        // create directories
         this.CreateDirectories()
 
+        // create database library
         await DatabaseEngine.Init();
 
+        // advertise our HDHomeRun Device
         Advertise.Instance();
 
+        // begin monitoring streams
         StreamManager.MonitorStreams();
 
+        // run the web server
         WebServer.Run();
     }
 }
 
+// start our application
 Piparr.main().catch(e => {
     console.error(e);
 

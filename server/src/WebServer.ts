@@ -10,21 +10,32 @@ import StreamManager from "./StreamManager";
 import { DatabaseEngine } from './DatabaseEngine';
 import { Channel, ChannelSource, EpgBuilder, Stream } from './types';
 
+/**
+ * WebServer provides the routes and general setup for Piparr
+ */
 export default class WebServer {
+    /**
+     * Start our web server
+     */
     public static Run() {
+        // Create the fastify web server with logger enabled
         const fastify = Fastify({
             logger: true
         });
 
+        //#region Static Routes
+        // Register our static routes
         fastify.register(FastifyStatic, {
             root: path.resolve('./static'),
             prefix: '/static/',
         });
 
+        // Index route redirect for /web/index.html
         fastify.get('/', (req, res) => {
             res.redirect('/web/index.html', 302);
         });
 
+        // Main web app
         fastify.get('/web/index.html', (req, res) => {
             const viewsPath = path.resolve(path.join('./views', 'web.html'));
             const webAppFile = fs.readFileSync(viewsPath).toString();
@@ -32,13 +43,17 @@ export default class WebServer {
             res.header('content-type', 'text/html');
             res.send(webAppFile);
         });
+        //#endregion
 
+        //#region API Routes
+        // API route to return streams
         fastify.get('/api/streams', async (req, res) => {
             const streams = await DatabaseEngine.All(`SELECT * FROM streams;`);
 
             res.send(streams);
         });
 
+        // API route to create streams
         fastify.post('/api/streams', async (req, res) => {
             const payload = req.body as any;
 
@@ -62,6 +77,7 @@ export default class WebServer {
             });
         });
 
+        // API route to delete streams
         fastify.delete('/api/streams/:streamId', async (req, res) => {
             const params = req.params as any;
 
@@ -70,6 +86,7 @@ export default class WebServer {
             res.send(true);
         });
 
+        // API route to reset health on streams
         fastify.post('/api/streams/:streamId/resetHealth', async (req, res) => {
             const params = req.params as any;
 
@@ -90,6 +107,7 @@ export default class WebServer {
             res.send(true);
         });
 
+        // API route to get sources for streams
         fastify.get('/api/streams/:streamId/sources', async (req, res) => {
             const params = req.params as any;
 
@@ -116,12 +134,14 @@ export default class WebServer {
             })));
         });
 
+        // API route to get channels created
         fastify.get('/api/channels', async (req, res) => {
             const channels = await DatabaseEngine.All(`SELECT * FROM channels;`);
 
             res.send(channels);
         });
 
+        // API route to create a new channel
         fastify.post('/api/channels', async (req, res) => {
             const payload = req.body as any;
 
@@ -141,6 +161,7 @@ export default class WebServer {
             });
         });
 
+        // API route to get information about a channel
         fastify.get('/api/channels/:channelId', async (req, res) => {
             const params = req.params as any;
 
@@ -166,6 +187,7 @@ export default class WebServer {
             })
         });
 
+        // API route to update stream sources connected to a channel
         fastify.put('/api/channels/:channelId/streams', async (req, res) => {
             const params = req.params as any;
             const body = req.body as any;
@@ -184,13 +206,17 @@ export default class WebServer {
 
             const channel = channels[0];
 
+            // fetch all streams
             const streams = await DatabaseEngine.All(`SELECT * FROM streams`) as Stream[];
+
+            // fetch all current sources for this channel
             const sources = await DatabaseEngine.AllSafe(`SELECT * FROM channel_source WHERE channel_id = ?`, [ channel.id ]) as ChannelSource[];
 
             // loop through new provided streams
             for(const sourceId of body.sources) {
                 const existingSource = sources.find(i => i.stream_channel === sourceId);
 
+                // if channel already exists we skip
                 if (typeof existingSource !== 'undefined') {
                     console.log(`[Piparr] Skipping add of source ${sourceId}`);
 
@@ -226,7 +252,7 @@ export default class WebServer {
                 ]);
             }
 
-            // remove invalidated sources
+            // remove invalidated sources, channels that exist in the db and not in the new payload will be removed
             for(const existingSource of sources) {
                 if (body.sources.includes(existingSource)) {
                     console.log(`[Piparr] source ${existingSource.stream_id} from stream ${existingSource.stream_channel} validated`);
@@ -242,6 +268,7 @@ export default class WebServer {
             res.send(200)
         });
 
+        // delete all source streams from a channel
         fastify.delete('/api/channels/:channelId/streams', async (req, res) => {
             const params = req.params as any;
             const body = req.body as any;
@@ -265,6 +292,7 @@ export default class WebServer {
             res.send(200)
         });
 
+        // get the source streams for a channel
         fastify.get('/api/channels/:channelId/streams', async (req, res) => {
             const params = req.params as any;
 
@@ -282,12 +310,16 @@ export default class WebServer {
 
             const channel = channels[0];
 
+            // fetch all streams
+            const streams = await DatabaseEngine.All(`SELECT * FROM streams`) as Stream[];
+
+            // fetch all current sources for this channel
             const sources = await DatabaseEngine.AllSafe(`SELECT * FROM channel_source WHERE channel_id = ?`, [ channel.id ]) as ChannelSource[];
-            const streams = await DatabaseEngine.All(`SELECT * FROM streams;`) as Stream[];
 
             let selectedStreams : any[] = [];
             let selectedSources: any[] = [];
 
+            // we need to do some pairing up here to display correctly
             for(const source of sources) {
                 const sourceStream = StreamManager.streams.find(i => i.id === source.stream_channel);
 
@@ -314,7 +346,10 @@ export default class WebServer {
                 sources: selectedSources
             })
         });
+        //#endregion
 
+        //#region HDHomeRun Routes
+        // HDHomeRun Route to get raw video source of stream
         fastify.get('/channels/:number/video', async (req, res) => {
             const params = req.params as any;
 
@@ -363,6 +398,7 @@ export default class WebServer {
             res.redirect(sourceStream.endpoint, 302);
         });
 
+        // Generate the EPG data into an XMLTV output
         fastify.get('/guide.xml', async (req, res) => {
             console.log(`[Piparr] Request to build guide`);
 
@@ -418,6 +454,7 @@ export default class WebServer {
             res.send(epgOut);
         });
 
+        // Get information about the HDHomeRun device
         fastify.get('/device.xml', (req, res) => {
             const host = req.protocol + '://' + req.hostname;
             return res
@@ -425,6 +462,7 @@ export default class WebServer {
                 .send(Advertise.Instance().getHdhrDeviceXml(host));
         });
 
+        // Get information about the HDHomeRun device
         fastify.get('/discover.json', (req, res) => {
             return res.send(
                 Advertise.Instance().getHdhrDevice(
@@ -433,6 +471,7 @@ export default class WebServer {
             );
         });
 
+        // Get information about the HDHomeRun device, specifically our capabilities
         fastify.get('/lineup_status.json', (req, res) => {
             return res.send({
                 ScanInProgress: 0,
@@ -442,6 +481,7 @@ export default class WebServer {
             });
         });
 
+        // Display the lineup we have enabled to emulate an HDHomeRUn device
         fastify.get('/lineup.json', async (req, res) => {
             const storedChannels = await DatabaseEngine.All(`SELECT * FROM channels;`) as Channel[];
 
@@ -457,7 +497,9 @@ export default class WebServer {
 
             return res.send(lineup);
         });
+        //#endregion
 
+        // Make the server listen to accept traffic
         fastify.listen({ host: '0.0.0.0', port: 34400 }, (err, addr) => {
             if (err)
                 throw err;
