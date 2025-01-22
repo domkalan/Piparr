@@ -40,7 +40,7 @@ export const ChannelsLineup = () => {
     const deleteChannel = async(event : React.MouseEvent<Element>, id : string) => {
         event.preventDefault();
 
-        const channelReq = await fetch('/api/streams/' + id, {
+        const channelReq = await fetch('/api/channels/' + id, {
             method: 'DELETE'
         });
 

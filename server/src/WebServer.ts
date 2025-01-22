@@ -269,6 +269,32 @@ export default class WebServer {
         });
 
         // delete all source streams from a channel
+        fastify.delete('/api/channels/:channelId', async (req, res) => {
+            const params = req.params as any;
+            const body = req.body as any;
+
+            const channels = await DatabaseEngine.AllSafe('SELECT * FROM channels WHERE id = ?;', [params.channelId]) as Channel[];
+
+            if (channels.length === 0) {
+                console.warn(`the requested channel was not found`)
+
+                res.status(404);
+
+                res.send(404);
+
+                return;
+            }
+
+            const channel = channels[0];
+
+            await DatabaseEngine.AllSafe(`DELETE FROM channels WHERE id = ?`, [ channel.id ]) as ChannelSource[];
+
+            await DatabaseEngine.AllSafe(`DELETE FROM channel_source WHERE channel_id = ?`, [ channel.id ]) as ChannelSource[];
+            
+            res.send(200)
+        });
+
+        // delete all source streams from a channel
         fastify.delete('/api/channels/:channelId/streams', async (req, res) => {
             const params = req.params as any;
             const body = req.body as any;
