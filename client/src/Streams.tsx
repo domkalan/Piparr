@@ -84,7 +84,7 @@ export const StreamManager = () => {
 
         setTimeout(() => {
             fetchStreams();
-        }, 500)
+        }, 500);
     }
 
     // Confirm that you want to delete a stream
@@ -96,6 +96,38 @@ export const StreamManager = () => {
         }
 
         event.preventDefault();
+    }
+
+    // Confirm that you want to delete a stream
+    const setRegexForProvider = async (event : React.MouseEvent<Element>, id : string) => {
+        event.preventDefault();
+
+        let currentRegex = '';
+        
+        const streamObject = streams.find(i => i.id === id);
+
+        if (typeof streamObject !== 'undefined') {
+            currentRegex = streamObject.regex;
+        }
+
+        const regexFilter = prompt('Enter regex filter:', currentRegex) || currentRegex;
+
+        if (currentRegex === regexFilter)
+            return;
+
+        const providerReq = await fetch('/api/streams/' + id + '/regex', {
+            method: 'POST',
+            headers: {
+                'content-type': 'application/json'
+            },
+            body: JSON.stringify({ regex: regexFilter })
+        });
+
+        const providerRes = await providerReq.json();
+
+        setTimeout(() => {
+            fetchStreams();
+        }, 500);
     }
 
     React.useEffect(() => {
@@ -115,6 +147,7 @@ export const StreamManager = () => {
                                     <th scope="col">ID</th>
                                     <th scope="col">Name</th>
                                     <th scope="col">Status</th>
+                                    <th scope="col">Regex</th>
                                     <th scope="col">Actions</th>
                                 </tr>
                             </thead>
@@ -125,7 +158,8 @@ export const StreamManager = () => {
                                             <th scope="row">{provider.id}</th>
                                             <td>{provider.name}</td>
                                             <td>{provider.healthState}</td>
-                                            <td><a href="#" onClick={e => resetProvider(e, provider.id)}>Rescan</a> <a href="#" onClick={e => confirmDeleteProvider(e, provider.id)}>Delete</a></td>
+                                            <td><code className='code-block'>{provider.regex}</code></td>
+                                            <td><a href="#" onClick={e => resetProvider(e, provider.id)}>Rescan</a> <a href="#" onClick={e => setRegexForProvider(e, provider.id)}>Set Regex</a> <a href="#" onClick={e => confirmDeleteProvider(e, provider.id)}>Delete</a></td>
                                         </tr>
                                     );
                                 })}

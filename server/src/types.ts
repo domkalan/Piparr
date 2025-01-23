@@ -6,7 +6,7 @@ export interface Stream {
     stream: string,
     connections: number,
     last_updated: string,
-    regex?: string
+    regex: string
     type: string
 }
 

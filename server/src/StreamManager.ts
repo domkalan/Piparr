@@ -167,10 +167,7 @@ export default class StreamManager {
                     return;
                 }
 
-                // Write the parsed data to the .json file
-                fs.writeFileSync(streamsOutJson, JSON.stringify(data.m3u8, null, 4));
-
-                const newStreams: ChannelSourceInternal[] = [];
+                let newStreams: ChannelSourceInternal[] = [];
 
                 let streamId = 0;
                 // Iterate over each channel in the parsed m3u8 data
@@ -209,10 +206,20 @@ export default class StreamManager {
                     streamId++;
                 }
 
-                console.log(`[Piparr][StreamManager] stream ${stream.name} contains ${newStreams.length} stream(s)`)
+                console.log(`[Piparr][StreamManager] stream ${stream.name} contains ${newStreams.length} stream(s)`);
+
+                if (stream.regex !== 'undefined') {
+                    console.log(`[Piparr][StreamManager] running regex filter on stream ${stream.name}`);
+
+                    const reg = new RegExp(stream.regex);
+
+                    newStreams = newStreams.filter(i => reg.test(i.name));
+                }
 
                 // Update the streams array with the new streams
                 this.streams = this.streams.filter(i => i.stream !== stream.id).concat(newStreams);
+
+                
 
                 // Resolve the promise indicating success
                 resolve(true);

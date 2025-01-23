@@ -118,6 +118,28 @@ export default class WebServer {
             res.send(true);
         });
 
+        // API route to set regex filter
+        fastify.post('/api/streams/:streamId/regex', async (req, res) => {
+            const params = req.params as any;
+            const body = req.body as any;
+
+            const streams = await DatabaseEngine.AllSafe('SELECT * FROM streams WHERE id = ?;', [params.streamId]) as Stream[];
+
+            if (streams.length === 0) {
+                console.warn(`the requested stream was not found`)
+
+                res.status(404);
+
+                res.send(404);
+
+                return;
+            }
+
+            await DatabaseEngine.RunSafe('UPDATE streams SET regex = ? WHERE id = ?', [ body.regex,  params.streamId ]);
+
+            res.send(true);
+        });
+
         // API route to get sources for streams
         fastify.get('/api/streams/:streamId/sources', async (req, res) => {
             const params = req.params as any;
