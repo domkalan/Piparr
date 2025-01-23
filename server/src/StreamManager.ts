@@ -172,8 +172,6 @@ export default class StreamManager {
                 let streamId = 0;
                 // Iterate over each channel in the parsed m3u8 data
                 for(const channel of data.m3u8.channels) {
-                    console.log(`[Piparr][StreamManager] stream ${stream.name} contains stream ${streamId}`)
-                    
                     // Default stream ID and name if not provided
                     const streamId_default = `stream${stream.id}.source${streamId}`;
                     const streamName_default = stream.name + ' Source #' + streamId;
