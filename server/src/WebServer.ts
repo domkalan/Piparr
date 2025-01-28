@@ -538,6 +538,69 @@ export default class WebServer {
                 res.code(500).send({ error: 'Failed to start transcoding' });
             }
         });
+        
+        // Attempt to proxy remote video on the fly (EXPERIMENTAL)
+        fastify.get('/channels/:number/video-proxy', async (req, res) => {
+            const params = req.params as any;
+
+            const channels = await DatabaseEngine.AllSafe('SELECT * FROM channels WHERE channel_number = ?;', [params.number]) as Channel[];
+
+            if (channels.length === 0) {
+                console.warn(`the requested channel was not found`)
+
+                res.status(404);
+
+                res.send(404);
+
+                return;
+            }
+
+            const channel = channels[0];
+
+            const channelSources = await DatabaseEngine.AllSafe('SELECT * FROM channel_source WHERE channel_id = ?;', [ channel.id ]) as ChannelSource[];
+
+            if (channelSources.length === 0) {
+                console.warn(`no sources exist for the channel`)
+
+                res.status(500);
+
+                res.send(500);
+
+                return;
+            }
+
+            const channelSource = channelSources[0];
+
+            const sourceStreams = StreamManager.streams.filter(i => i.stream == channelSource.stream_id && i.id === channelSource.stream_channel);
+
+            if (sourceStreams.length === 0) {
+                console.warn(`could not fetch source streams`);
+
+                res.status(500);
+
+                res.send(500);
+
+                return;
+            }
+            
+            const sourceStream = sourceStreams[0];
+
+            try {
+                console.log(`[Piparr] attempting to spin up live ffmpeg transcoder for ${sourceStream.endpoint}`);
+
+                const response = await fetch(sourceStream.endpoint);
+
+                if (!response.ok) {
+                    res.status(response.status).send(response.statusText);
+                    return;
+                }
+
+                return res.send(response.body)
+            } catch(error) {
+                console.error('Error:', error);
+                res.code(500).send({ error: 'Failed to proxy' });
+            }
+        });
 
         // Generate the EPG data into an XMLTV output
         fastify.get('/guide.xml', async (req, res) => {
