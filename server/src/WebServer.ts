@@ -526,7 +526,7 @@ export default class WebServer {
                 });
 
                 res.headers({
-                    'Content-Type': 'video/mp4',
+                    'Content-Type': 'video/mp2t',
                     'Cache-Control': 'no-cache',
                     'Transfer-Encoding': 'chunked',
                     'Connection': 'keep-alive',
