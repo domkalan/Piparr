@@ -511,23 +511,13 @@ export default class WebServer {
             
             const sourceStream = sourceStreams[0];
 
-            const urlParser = new URL(sourceStream.endpoint);
-
             try {
                 console.log(`[Piparr] attempting to spin up live ffmpeg transcoder for ${sourceStream.endpoint}`);
 
                 const ffmpegProcess = ffmpeg(sourceStream.endpoint)
-                .inputOptions(['-re']) // Read input at native frame rate
-                .outputOptions([
-                    '-c:v libx264', // Transcode video to H.264
-                    '-preset veryfast', // Use fast preset for low-latency
-                    '-tune zerolatency', // Optimize for streaming
-                    '-c:a aac', // Transcode audio to AAC
-                    '-b:v 1500k', // Video bitrate
-                    '-b:a 128k', // Audio bitrate
-                    '-f mp4', // Output format
-                    '-movflags frag_keyframe+empty_moov', // Make MP4 streamable
-                ])
+                .outputFormat('mpegts') // Output format
+                .videoCodec('copy')    // Copy video codec for efficiency
+                .audioCodec('copy')    // Copy audio codec for efficiency
                 .on('error', (err, stdout, stderr) => {
                     console.error('[Piparr] FFmpeg error:', err.message);
                 })
