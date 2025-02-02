@@ -39,7 +39,7 @@ export abstract class DatabaseEngine {
                     }
                 }
             });
-        })
+        });
     }
 
     /**
@@ -168,6 +168,63 @@ export abstract class DatabaseEngine {
                     reject(err.message);
                 } else {
                     resolve(result);
+                }
+            })
+        })
+    }
+
+     /**
+     * Run an SQL query and return one
+     * @param sql 
+     * @param object
+     * @returns 
+     * @deprecated Use OneSafe to prevent against sql injection
+     */
+     public static One(sql: string) {
+        return new Promise((resolve, reject) => {
+            console.log(`[Piparr][database][async][all] running ${sql}`)
+
+            this.instance.all(sql, (err : any, result : any) => {
+                if (err) {
+                    console.error(err);
+
+                    reject(err.message);
+                } else {
+                    if (result.length === 0) {
+                        resolve(null);
+
+                        return;
+                    }
+
+                    resolve(result[0]);
+                }
+            })
+        })
+    }
+
+    /**
+     * Run an SQL query and return one
+     * @param sql 
+     * @param object
+     * @returns
+     */
+    public static OneSafe(sql: string, object: any) {
+        return new Promise((resolve, reject) => {
+            console.log(`[Piparr][database][async][all] running ${sql}`)
+
+            this.instance.all(sql, object, (err : any, result : any) => {
+                if (err) {
+                    console.error(err);
+
+                    reject(err.message);
+                } else {
+                    if (result.length === 0) {
+                        resolve(null);
+
+                        return;
+                    }
+
+                    resolve(result[0]);
                 }
             })
         })
