@@ -22,7 +22,7 @@ export default class StreamManager {
         console.log(`[Piparr][StreamManager] fetching streams`);
         
         // select all streams from database
-        const streams = await DatabaseEngine.AllSafe('SELECT * FROM streams WHERE healthy = ? OR healthy = ?;', [1, -1]) as Stream[];
+        const streams = await DatabaseEngine.AllSafe('SELECT * FROM streams WHERE healthy = ? OR healthy = ? OR healthy = ?;', [1, 0, -1]) as Stream[];
 
         // run operation with all streams
         for(const stream of streams) {
