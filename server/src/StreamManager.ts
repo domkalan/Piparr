@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { Worker } from 'node:worker_threads';
+import Timers from 'node:timers/promises'
 
 import { parseM3U } from "@tunarr/playlist";
 import { parseXmltv, XmltvChannel } from '@iptv/xmltv';
@@ -11,7 +11,6 @@ import Piparr from ".";
 
 import { DatabaseEngine } from "./DatabaseEngine";
 import { ChannelSourceInternal, EpgInternal, Stream } from "./types";
-import { Timers } from './Timers';
 import { BackgroundThreading } from './BackgroundThreading';
 
 export default class StreamManager {
@@ -86,7 +85,7 @@ export default class StreamManager {
                 await DatabaseEngine.Run(`UPDATE streams SET healthy = 1 WHERE id = ${stream.id}`);
 
                 // wait
-                Timers.WaitFor(1000)
+                await Timers.setTimeout(1000);
             } catch(error) {
                 console.warn(`[Piparr][StreamManager] failed to update ${stream.name}, will try again next task`);
 
@@ -96,53 +95,7 @@ export default class StreamManager {
             }
         }
     }
-
-    public static async GrabEPG(stream : Stream) {
-        debugger;
-        /*console.log(`[Piparr][StreamManager] grabbing epg for stream ${stream.name}`);
-
-        // set path where epg is stored
-        const epgOut = path.resolve(Piparr.dataDir, `${stream.id}-epg.xml`);
-
-        // create http request
-        const response = await fetch(stream.epg, {
-            method: "GET"
-        });
-
-        // get text from request
-        const body = await response.text();
-
-        // write stream to file system
-        fs.writeFileSync(epgOut, body);
-
-        return true;*/
-    }
-
-    public static async ParseEPG(stream : Stream) {
-        debugger;
-        /*console.log(`[Piparr][StreamManager] parsing epg for ${stream.name}`)
-
-        const epgOut = path.resolve(Piparr.dataDir, `${stream.id}-epg.xml`);
-
-        const epgFile = fs.readFileSync(epgOut).toString();
-
-        const epgParsed = parseXmltv(epgFile);
-
-        const epgOutJson = path.resolve(Piparr.dataDir, `${stream.id}-epg.json`);
-
-        fs.writeFileSync(epgOutJson, JSON.stringify(epgParsed, null, 4));
-
-        const epgUpdated: EpgInternal[] = [];
-
-        epgUpdated.push({
-            stream: stream.id, epg: epgParsed
-        });
-
-        this.epg = this.epg.filter(i => i.stream !== stream.id).concat(epgUpdated);
-
-        console.log(`[Piparr][StreamManager] grabbing epg for stream ${stream.name} returned ${(epgParsed.channels || []).length} channel(s)`)*/
-    }
-
+    
     public static ParseStream(stream : Stream) : Promise<any> {
         return new Promise((resolve, reject) => {
             console.log(`[Piparr][StreamManager] parsing streams for ${stream.name}`);
