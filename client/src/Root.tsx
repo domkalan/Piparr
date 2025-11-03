@@ -3,13 +3,16 @@ import { Link, Route, Routes } from 'react-router-dom';
 import { ChannelsLineup } from './Channels';
 import { StreamManager } from './Streams';
 import { ChannelManager } from './Channel';
+import { EPGManager } from './EPGSources';
+import { Index } from './Index';
+import { Settings } from './Settings';
 
 // mount app on dom, provide basic web app frame
 export const AppRoot = () => {
     return(
         <div>
             <nav className="navbar navbar-expand-lg navbar-light bg-light">
-                <div className="container-fluid">
+                <div className="container">
                     <Link className="navbar-brand" to="/">Piparr</Link>
                     <button className="navbar-toggler" type="button"
                         data-bs-toggle="collapse"
@@ -22,7 +25,7 @@ export const AppRoot = () => {
                         id="navbarSupportedContent">
                         <ul className="navbar-nav me-auto mb-2 mb-lg-0">
                             <li className="nav-item">
-                                <Link className="nav-link active" aria-current="page" to="/channels">Channels</Link>
+                                <Link className="nav-link" aria-current="page" to="/channels">Channels</Link>
                             </li>
                             <li className="nav-item">
                                 <Link className="nav-link" to="/streams">Streams</Link>
@@ -39,10 +42,15 @@ export const AppRoot = () => {
             </nav>
 
             <Routes>
+                <Route path='/' element={<Index/>}/>
                 <Route path='/channels' element={<ChannelsLineup/>}/>
                 <Route path='/channels/:channelId' element={<ChannelManager/>}/>
 
                 <Route path='/streams' element={<StreamManager/>}/>
+
+                <Route path='/epg' element={<EPGManager/>}/>
+
+                <Route path='/settings' element={<Settings/>}/>
             </Routes>
         </div>
     );

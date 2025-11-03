@@ -33,6 +33,9 @@ export abstract class BackgroundThreading {
                 
         // if worker errors out, terminate it pass error to callback
         worker.on('error', (error) => {
+
+            throw error;
+            
             console.log(`[Piparr][BackgroundThreading] background task has encountered an error`, error);
 
             worker.terminate();
@@ -62,5 +65,25 @@ export abstract class BackgroundThreading {
                 }
             }, timeout);
         }
+    }
+
+    /**
+     * Run a defined worker file in the background.
+     * @param workerFile The path for the file to run.
+     * @param payload The payload to pass into the worker.
+     * @param timeout Should the worker be terminated after a time, useful for things that might hang.
+     */
+    public static RunAsync(workerFile: string, payload : any, timeout : number = 0) {
+        return new Promise((resolve, reject) => {
+            this.Run(workerFile, payload, (err, data) => {
+                if (err) {
+                    reject(err);
+
+                    return;
+                }
+
+                resolve(data);
+            })
+        })
     }
 }

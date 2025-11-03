@@ -201,14 +201,24 @@ export abstract class DatabaseEngine {
         await this.Run(`CREATE TABLE IF NOT EXISTS epgsources (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
-            epg TEXT NOT NULL
+            epg TEXT NOT NULL,
+            last_updated TEXT,
+            regex TEXT,
+            healthy INTEGER DEFAULT 1
         );`);
         console.log('[Piparr][database] table "epgsources" created');
+
+        await this.Run(`CREATE TABLE IF NOT EXISTS epgremaps (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            original TEXT NOT NULL,
+            new TEXT NOT NULL,
+            epgsources TEXT
+        );`);
+        console.log('[Piparr][database] table "epgremaps" created');
 
         await this.Run(`CREATE TABLE IF NOT EXISTS channels (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
-            logo TEXT,
             epg TEXT NOT NULL,
             channel_number INTEGER NOT NULL
         );`);

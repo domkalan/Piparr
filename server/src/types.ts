@@ -1,5 +1,3 @@
-import { Xmltv, XmltvChannel, XmltvProgramme } from "@iptv/xmltv"
-
 export interface Stream {
     id: number,
     name: string,
@@ -33,13 +31,16 @@ export interface ChannelSourceInternal {
     endpoint: string
 }
 
-export interface EpgInternal {
-    stream: number,
-    epg: Xmltv
+export interface EPGSource {
+    id: number,
+    name: string,
+    epg: string,
+    last_updated: string,
+    regex: string,
+    healthy: number
 }
 
-export interface EpgBuilder {
-    channels: XmltvChannel[],
-    programs: XmltvProgramme[],
-    xmltv: Xmltv | null
+export interface EPGRemap {
+    original: string,
+    new: string
 }

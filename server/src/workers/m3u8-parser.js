@@ -1,3 +1,6 @@
+// TODO: update this to reflect the changes shown in epg-parser.js
+// Data is not passed back and forth, instead paths are passed and will be read from disk
+
 const { parentPort, workerData, isMainThread } = require('worker_threads');
 const { parseM3U } = require("@tunarr/playlist");
 

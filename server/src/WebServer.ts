@@ -3,12 +3,11 @@ import fs from 'node:fs';
 
 import Fastify from 'fastify';
 import FastifyStatic from '@fastify/static';
-import { writeXmltv, XmltvChannel, XmltvProgramme, Xmltv } from '@iptv/xmltv';
 
 import { Advertise } from "./Advertise";
 import StreamManager from "./StreamManager";
 import { DatabaseEngine } from './DatabaseEngine';
-import { Channel, ChannelSource, EpgBuilder, Stream } from './types';
+import { Channel, ChannelSource, EPGSource, Stream } from './types';
 
 /**
  * WebServer provides the routes and general setup for Piparr
@@ -155,9 +154,8 @@ export default class WebServer {
         fastify.post('/api/channels', async (req, res) => {
             const payload = req.body as any;
 
-            const streamId = await DatabaseEngine.Insert(`INSERT INTO channels (name, logo, epg, channel_number) VALUES (?, ?, ?, ?);`, [
+            const streamId = await DatabaseEngine.Insert(`INSERT INTO channels (name, epg, channel_number) VALUES (?, ?, ?);`, [
                 payload.name,
-                payload.logo,
                 'null',
                 Number(payload.channel_number)
             ]);
@@ -165,7 +163,6 @@ export default class WebServer {
             res.send({
                 id: streamId,
                 name: payload.name,
-                stream: payload.logo,
                 epg: '',
                 channel_number: Number(payload.channel_number)
             });
@@ -382,6 +379,116 @@ export default class WebServer {
                 sources: selectedSources
             })
         });
+
+        // API Route to get epg sources
+        fastify.get('/api/epgsources', async (req, res) => {
+            const streams = await DatabaseEngine.All(`SELECT * FROM epgsources;`);
+
+            res.send(streams);
+        });
+
+        // API route to create streams
+        fastify.post('/api/epgsources', async (req, res) => {
+            const payload = req.body as any;
+
+            const epgId = await DatabaseEngine.Insert('INSERT INTO epgsources (name, epg, regex, last_updated) VALUES (?, ?, ?, ?);', [
+                payload.name,
+                payload.epg,
+                payload.regex,
+                0
+            ]);
+
+            res.send({
+                id: epgId,
+                name: payload.name,
+                regex: payload.regex,
+                epg: payload.epg,
+                last_updated: 0
+            });
+        });
+
+        // API route to delete streams
+        fastify.delete('/api/epgsources/:epgId', async (req, res) => {
+            const params = req.params as any;
+
+            await DatabaseEngine.RunSafe(`DELETE FROM epgsources WHERE id = ?;`, [params.epgId]);
+
+            res.send(true);
+        });
+
+        // API route to reset health on streams
+        fastify.post('/api/epgsources/:epgId/resetHealth', async (req, res) => {
+            const params = req.params as any;
+
+            const streams = await DatabaseEngine.AllSafe(`SELECT * FROM epgsources WHERE id = ?;`, [params.epgId]) as EPGSource[];
+
+            if (streams.length === 0) {
+                console.warn(`the requested stream was not found`)
+
+                res.status(404);
+
+                res.send(404);
+
+                return;
+            }
+
+            await DatabaseEngine.RunSafe(`UPDATE epgsources SET healthy = -1 WHERE id = ?`, [ params.epgId ]);
+
+            res.send(true);
+        });
+
+        // API route to get channels for epg source
+        fastify.get('/api/epgsources/:epgId/channels', async (req, res) => {
+            const params = req.params as any;
+
+            const sources = await DatabaseEngine.AllSafe(`SELECT * FROM epgsources WHERE id = ?;`, [Number.parseInt(params.epgId)]) as EPGSource[];
+
+            if (sources.length == 0) {
+                console.warn(`the requested epg source was not found`)
+
+                res.status(404);
+
+                res.send(404);
+
+                return;
+            }
+
+            res.send([]);
+        });
+
+        // API Route to get epg sources
+        fastify.get('/api/epgremaps', async (req, res) => {
+            const streams = await DatabaseEngine.All(`SELECT * FROM epgremaps;`);
+
+            res.send(streams);
+        });
+
+        // API route to create streams
+        fastify.post('/api/epgremaps', async (req, res) => {
+            const payload = req.body as any;
+
+            const epgId = await DatabaseEngine.Insert('INSERT INTO epgremaps (original, new, epgsources) VALUES (?, ?, ?);', [
+                payload.original,
+                payload.new,
+                ''
+            ]);
+
+            res.send({
+                id: epgId,
+                original: payload.original,
+                new: payload.new
+            });
+        });
+
+        // API route to delete streams
+        fastify.delete('/api/epgremaps/:epgId', async (req, res) => {
+            const params = req.params as any;
+
+            await DatabaseEngine.RunSafe(`DELETE FROM epgremaps WHERE id = ?;`, [params.epgId]);
+
+            res.send(true);
+        });
+        
         //#endregion
 
         //#region HDHomeRun Routes
@@ -436,58 +543,17 @@ export default class WebServer {
 
         // Generate the EPG data into an XMLTV output
         fastify.get('/guide.xml', async (req, res) => {
-            console.log(`[Piparr] Request to build guide`);
+            // TODO: need to figure out how to combine epg.xml for this to work
 
-            const channels = await DatabaseEngine.All(`SELECT * FROM channels;`) as Channel[];
+            res.send('');
+        });
 
-            console.log(`[Piparr] Will build guide for ${channels.length} channel(s)`);
+        fastify.get('/guides/:guideNum/guide.xml', async (req, res) => {
+            const params = req.params as any;
 
-            const channelSources = await DatabaseEngine.All(`SELECT * FROM channel_source;`) as ChannelSource[];
+            const guidePath = path.resolve(path.join('./data/static', `epg-${params.guideNum}.xml`))
 
-            const epgBuilder: EpgBuilder = {
-                channels: [],
-                programs: [],
-                xmltv: null
-            }
-
-            for(const channel of channels) {
-                const channelSource = channelSources.find(i => i.channel_id === channel.id);
-
-                if (typeof channelSource === 'undefined')
-                    continue;
-
-                const epgSource = StreamManager.epg.find(i => i.stream === channelSource.stream_id);
-
-                if (typeof epgSource === 'undefined')
-                    continue;
-
-                const epgChannels: XmltvChannel[] = epgSource.epg.channels || [];
-                const epgProgramsAll: XmltvProgramme[] = epgSource.epg.programmes || [];
-
-                const epgChannel = epgChannels.find(i => i.id === channelSource.stream_channel);
-
-                if (typeof epgChannel === 'undefined')
-                    continue;
-
-                console.log(`[Piparr] channel ${channel.channel_number} (${channel.name}, id=${channelSource.stream_channel}) has xmltv guide entry`)
-
-                const epgPrograms = epgProgramsAll.filter(i => i.channel === channelSource.stream_channel);
-
-                epgBuilder.xmltv = epgSource.epg;
-                epgBuilder.channels.push(epgChannel);
-                epgBuilder.programs = epgBuilder.programs.concat(epgPrograms);
-            }
-
-            // recreate epg
-            const newEpg: Xmltv = { ... epgBuilder.xmltv };
-            newEpg.channels = epgBuilder.channels;
-            newEpg.programmes = epgBuilder.programs;
-
-            const epgOut = writeXmltv(newEpg);
-
-            res.header('content-type', 'application/xml');
-
-            res.send(epgOut);
+            return res.sendFile(guidePath);
         });
 
         // Get information about the HDHomeRun device

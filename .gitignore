@@ -138,8 +138,8 @@ dist/
 # data
 data/
 
-# generated app bundle
-static/app.bundle.js
+# no static data
+static
 
 #.vscode stuff
 .vscode/

@@ -107,11 +107,6 @@ export const ChannelsLineup = () => {
                                     <input className="form-control" name="channel_number" type="number" placeholder='605' required/>
                                 </div>
 
-                                <div className='form-group'>
-                                    <label>Guide Logo</label>
-                                    <input className="form-control" name="logo" type="text" placeholder='https://www.example.com/acme.png' required/>
-                                </div>
-
                                 <button className='btn btn-primary'>Create</button>
                             </form>
                         </div>

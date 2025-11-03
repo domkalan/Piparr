@@ -8,8 +8,7 @@ export const ChannelManager = () => {
         id: null,
         name: '',
         channel_number: null,
-        epg: '',
-        logo: ''
+        epg: ''
     });
     const [streams, setStreams] = React.useState<any[]>([]);
     const [selectedStreams, setSelectedStreams] = React.useState<any[]>([]);
@@ -145,11 +144,6 @@ export const ChannelManager = () => {
                                     <input className="form-control" name="name" type="text" placeholder='ACME 24/7' required defaultValue={channel.name}/>
                                 </div>
 
-                                <div className='form-group'>
-                                    <label>Guide Logo</label>
-                                    <input className="form-control" name="logo" type="text" placeholder='https://www.example.com/acme.png' required defaultValue={channel.logo}/>
-                                </div>
-
                                 <button className='btn btn-success'>Update</button>
                             </form>
                         </div>
@@ -206,12 +200,6 @@ export const ChannelManager = () => {
                                 <button className='btn btn-success' onClick={(e) => { updateChannelSources(e); }}>Update Sources</button>
                                 <button className='btn btn-danger ms-2' onClick={(e) => { deleteChannelSources(e); }}>Delete Sources</button>
                             </form>
-                        </div>
-                    </div>
-
-                    <div className="col-sm-12 col-md-3">
-                        <div className="card">
-                            <img src={channel.logo} className="card-img-top" alt={channel.name}/>
                         </div>
                     </div>
                 </div>
