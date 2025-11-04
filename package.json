@@ -1,7 +1,6 @@
 {
   "dependencies": {
     "@fastify/static": "^7.0.4",
-    "@tunarr/playlist": "^1.1.0",
     "fastify": "^4.28.1",
     "ip": "^2.0.1",
     "moment": "^2.30.1",

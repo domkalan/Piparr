@@ -6,7 +6,8 @@ export interface Stream {
     connections: number, // Number of active connections
     last_updated: string, // Timestamp of the last update
     regex?: string // Optional regex pattern for stream filtering
-    type: string // Type of the stream (e.g., direct, playlist)
+    type: string // Type of the stream (e.g., direct, playlist),
+    healthy: number // The current health status of the stream (-1 retrying, 0 failed, 1 healthy, 2 refreshing)
 }
 
 // Interface representing a channel with its properties
@@ -40,7 +41,7 @@ export interface EPGSource {
     epg: string, // EPG data or URL
     last_updated: string, // Timestamp of the last update
     regex: string, // Regex pattern for filtering EPG data
-    healthy: number // Health status of the EPG source
+    healthy: number // The current health status for the epg data (-1 retrying, 0 failed, 1 healthy, 2 refreshing)
 }
 
 // Interface for remapping EPG data
