@@ -219,8 +219,9 @@ export abstract class DatabaseEngine {
         await this.Run(`CREATE TABLE IF NOT EXISTS channels (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
-            epg TEXT NOT NULL,
-            channel_number INTEGER NOT NULL
+            channel_number INTEGER NOT NULL,
+            logo TEXT,
+            epg TEXT
         );`);
         console.log('[Piparr][database] table "channels" created');
 

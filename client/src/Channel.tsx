@@ -144,20 +144,22 @@ export const ChannelManager = () => {
                                     <input className="form-control" name="name" type="text" placeholder='ACME 24/7' required defaultValue={channel.name}/>
                                 </div>
 
-                                <button className='btn btn-success'>Update</button>
-                            </form>
-                        </div>
-                        <div className="creation-field">
-                            <h5>EPG Binding</h5><hr/>
-                            <form onSubmit={(e) => { e.preventDefault(); }}>
                                 <div className='form-group'>
-                                    <label>EPG Source</label>
-                                    <select className="form-select" name="epg" defaultValue='null' disabled>
-                                        <option value="null" disabled></option>
-                                    </select>
+                                    <label>Guide Number</label>
+                                    <input className="form-control" name="channel_number" type="text" disabled defaultValue={channel.channel_number}/>
                                 </div>
 
-                                <button className='btn btn-success'>Update EPG</button>
+                                <div className='form-group'>
+                                    <label>Logo</label>
+                                    <input className="form-control" name="logo" type="text" placeholder='https://example.com/logo.png' defaultValue={channel.logo}/>
+                        </div>
+
+                                <div className='form-group'>
+                                    <label>EPG Name</label>
+                                    <input className="form-control" name="epg" type="text" placeholder='acme247.us' defaultValue={channel.epg}/>
+                                </div>
+
+                                <button className='btn btn-success'>Update</button>
                             </form>
                         </div>
                         <div className="creation-field">
@@ -201,6 +203,20 @@ export const ChannelManager = () => {
                                 <button className='btn btn-danger ms-2' onClick={(e) => { deleteChannelSources(e); }}>Delete Sources</button>
                             </form>
                         </div>
+                    </div>
+                    <div className="col-sm-12 col-md-3">
+                        <h5 className="mb-2">Channels Help</h5>
+                        <ol className="list-group">
+                            <li className="list-group-item">
+                                <div className="fw-bold">Logo</div>
+                                By default, channel logos are pulled from the EPG provider. If the EPG provider does not provide a logo, or you would like to set a custom logo you may provide one. 
+                            </li>
+                            <li className="list-group-item">
+                                <div className="fw-bold">EPG Name</div>
+                                The name of the channel on the EPG provider's XMLTV listing. For example, the channel "ACME 24/7" may have an EPG channel name as "acme247.us". If this value is left blank, the channel name from the stream provider will be used.
+                            </li>
+                        </ol>
+                        <a className="wiki-link independent-link" href="https://github.com/domkalan/Piparr/wiki" target="_blank">Open Piparr wiki</a>
                     </div>
                 </div>
             </div>

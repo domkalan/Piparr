@@ -76,6 +76,7 @@ export const ChannelsLineup = () => {
                                 <tr>
                                     <th scope="col">ID</th>
                                     <th scope="col">Name</th>
+                                    <th scope="col">EPG Name</th>
                                     <th scope="col">Guide Number</th>
                                     <th scope="col">Actions</th>
                                 </tr>
@@ -86,6 +87,7 @@ export const ChannelsLineup = () => {
                                         <tr>
                                             <th scope="row">{channel.id}</th>
                                             <td>{channel.name}</td>
+                                            <td>{channel.epg}</td>
                                             <td>{channel.channel_number}</td>
                                             <td><Link to={'/channels/' + channel.id}>Manage</Link> <a href="#" onClick={e => confirmDeleteChannel(e, channel.id)}>Delete</a></td>
                                         </tr>
@@ -103,6 +105,16 @@ export const ChannelsLineup = () => {
                                 </div>
 
                                 <div className='form-group'>
+                                    <label>Logo</label>
+                                    <input className="form-control" name="logo" type="text" placeholder='https://example.com/logo.png'/>
+                                </div>
+
+                                <div className='form-group'>
+                                    <label>EPG Name</label>
+                                    <input className="form-control" name="epg" type="text" placeholder='acme247.us'/>
+                                </div>
+
+                                <div className='form-group'>
                                     <label>Guide Number</label>
                                     <input className="form-control" name="channel_number" type="number" placeholder='605' required/>
                                 </div>
@@ -115,7 +127,14 @@ export const ChannelsLineup = () => {
                     <div className="col-sm-12 col-md-3">
                         <h5 className="mb-2">Channels Help</h5>
                         <ol className="list-group">
-                            
+                            <li className="list-group-item">
+                                <div className="fw-bold">Logo</div>
+                                By default, channel logos are pulled from the EPG provider. If the EPG provider does not provide a logo, or you would like to set a custom logo you may provide one. 
+                            </li>
+                            <li className="list-group-item">
+                                <div className="fw-bold">EPG Name</div>
+                                The name of the channel on the EPG provider's XMLTV listing. For example, the channel "ACME 24/7" may have an EPG channel name as "acme247.us". If this value is left blank, the channel name from the stream provider will be used.
+                            </li>
                         </ol>
                         <a className="wiki-link independent-link" href="https://github.com/domkalan/Piparr/wiki" target="_blank">Open Piparr wiki</a>
                     </div>

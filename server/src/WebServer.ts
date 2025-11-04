@@ -154,16 +154,17 @@ export default class WebServer {
         fastify.post('/api/channels', async (req, res) => {
             const payload = req.body as any;
 
-            const streamId = await DatabaseEngine.Insert(`INSERT INTO channels (name, epg, channel_number) VALUES (?, ?, ?);`, [
+            const streamId = await DatabaseEngine.Insert(`INSERT INTO channels (name, epg, logo, channel_number) VALUES (?, ?, ?, ?);`, [
                 payload.name,
-                'null',
+                payload.epg,
+                payload.logo,
                 Number(payload.channel_number)
             ]);
 
             res.send({
                 id: streamId,
                 name: payload.name,
-                epg: '',
+                epg: payload.epg,
                 channel_number: Number(payload.channel_number)
             });
         });
