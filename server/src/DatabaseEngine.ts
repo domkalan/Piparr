@@ -192,7 +192,7 @@ export abstract class DatabaseEngine {
             stream TEXT NOT NULL,
             type TEXT NOT NULL,
             connections INTEGER DEFAULT 1,
-            last_updated TEXT,
+            last_updated INTEGER NOT NULL,
             regex TEXT,
             healthy INTEGER DEFAULT 1
         );`);
@@ -202,7 +202,7 @@ export abstract class DatabaseEngine {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             epg TEXT NOT NULL,
-            last_updated TEXT,
+            last_updated INTEGER NOT NULL,
             regex TEXT,
             healthy INTEGER DEFAULT 1
         );`);

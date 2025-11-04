@@ -3,8 +3,6 @@ import path from 'node:path';
 import Timers from 'node:timers/promises'
 import { Readable } from 'node:stream';
 
-import moment from 'moment';
-
 import Piparr from ".";
 
 import { DatabaseEngine } from "./DatabaseEngine";
@@ -12,7 +10,13 @@ import { ChannelSourceInternal, EPGRemap, EPGSource, Stream } from "./types";
 import { BackgroundThreading } from './BackgroundThreading';
 
 export default class StreamManager {
+    // In memory store of channels available (is there a limit?)
     public static streams : ChannelSourceInternal[] = [];
+
+    // Have we done the initial parsing of streams
+    public static streamsParsed: boolean = false;
+    // Have we done the initial parsing of epg
+    public static epgParsed: boolean = false;
 
     public static async FetchStreams() {
         console.log(`[Piparr][StreamManager] fetching streams`);
@@ -22,39 +26,29 @@ export default class StreamManager {
 
         // run operation with all streams
         for(const stream of streams) {
-            // calc current time
-            const rightNow = new Date(Date.now());
-            const expiredTime = moment(rightNow).subtract(6, 'hour');
+            try {
+                // calc current time
+                const rightNow = Math.floor(Date.now() / 1000);
 
-            // create default date
-            let lastUpdated = new Date(0);
-            
-            // if date exists, update date
-            if (typeof stream.last_updated !== 'undefined')
-                lastUpdated = new Date(stream.last_updated);
+                // set path where stream is stored
+                const streamsOut = path.join(Piparr.dataDir, `stream-${stream.id}.m3u`);
 
-            // set path where stream is stored
-            const streamsOut = path.join(Piparr.dataDir, `stream-${stream.id}.m3u`);
+                // Add 12 hours (of seconds) to our last update, m3u should still be the same
+                if (stream.last_updated + 43200 >= rightNow && stream.healthy === 1) {
+                    // have we parsed the initial array of streams?
+                    if (!this.streamsParsed) {
+                        console.log(`[Piparr][StreamManager] scanning ${stream.name} for initial population`);
 
-            // check if stream has been checked and that file exists
-            if (stream.healthy === 1 && expiredTime.isBefore(lastUpdated) && fs.existsSync(streamsOut)) {
-                console.log(`[Piparr][StreamManager] stream ${stream.name} was updated recently, will reparse from disk`);
+                        await this.ParseStream(stream);
 
-                // await until we are done parsing
-                try {
-                    await this.ParseStream(stream);
-                } catch(error) {
-                    console.warn(`[Piparr][StreamManager] failed to parse ${stream.name}, will try again next task`);
+                        continue;
+                    }
 
-                    await DatabaseEngine.RunSafe(`UPDATE streams SET healthy = ? WHERE id = ?`, [0, stream.id]);
+                    console.log(`[Piparr][StreamManager] ${stream.name} was updated in the last 12 hours, skipping`);
 
-                    this.ClearStreamData(stream.id);
+                    continue;
                 }
 
-                continue;
-            }
-
-            try {
                 // update record in db
                 await DatabaseEngine.RunSafe(`UPDATE streams SET healthy = ? WHERE id = ?`, [2, stream.id]);
 
@@ -93,7 +87,7 @@ export default class StreamManager {
                 await this.ParseStream(stream);
 
                 // mark as healthy
-                await DatabaseEngine.RunSafe(`UPDATE streams SET last_updated = ?, healthy = ? WHERE id = ?`, [rightNow.toISOString(), 1, stream.id]);
+                await DatabaseEngine.RunSafe(`UPDATE streams SET last_updated = ?, healthy = ? WHERE id = ?`, [rightNow, 1, stream.id]);
 
                 // wait
                 await Timers.setTimeout(1000);
@@ -167,6 +161,10 @@ export default class StreamManager {
                 streamId++;
             }
 
+            // have we built the initial values
+            if (!this.streamsParsed)
+                this.streamsParsed = true;
+
             console.log(`[Piparr][StreamManager] stream ${stream.name} contains ${newStreams.length} stream(s)`)
 
             // Update the streams array with the new streams
@@ -197,76 +195,79 @@ export default class StreamManager {
 
         // run operation with all streams
         for(const source of sources) {
-            // calc current time
-            const rightNow = new Date(Date.now());
-            const expiredTime = moment(rightNow).subtract(23, 'hour');
-
-            // create default date
-            let lastUpdated = new Date(0);
-            
-            // if date exists, update date
-            if (typeof source.last_updated !== 'undefined')
-                lastUpdated = new Date(source.last_updated);
-
-            // set path where stream is stored
-            const streamsOut = path.join(Piparr.dataDir, `epg-${source.id}.xml`);
-
-            // check if stream has been checked and that file exists
-            if (expiredTime.isBefore(lastUpdated) && fs.existsSync(streamsOut)) {
-                console.log(`[Piparr][StreamManager] epg source ${source.name} was updated recently, skipping for now`);
-
-                continue;
-            }
-
-            // update record in db
-            await DatabaseEngine.RunSafe(`UPDATE epgsources SET healthy = ? WHERE id = ?`, [2, source.id]);
-
-            // notify will now update
-            console.log(`[Piparr][StreamManager] will now update epg source ${source.name} -> ${source.epg}`);
-
-            // create http request
-            const response = await fetch(source.epg, {
-                method: "GET"
-            });
-
-            // ensure response body is not null
-            if (!response.body) {
-                throw new Error("Response body is null");
-            }
-
-            // create a write stream to the file system
-            const writeStream = fs.createWriteStream(streamsOut);
-
-            // convert the response body to a Node.js readable stream
-            const readableStream = Readable.fromWeb(response.body as any);
-
-            // pipe the readable stream to the write stream
-            readableStream.pipe(writeStream);
-
-            // wait for the stream to finish
-            await new Promise((resolve, reject) => {
-                writeStream.on('finish', resolve);
-                writeStream.on('error', reject);
-            });
-
-            // notify update
-            console.log(`[Piparr][StreamManager] got updated streams for ${source.name}`);
-
             try {
+                // calc current time
+                const rightNow = Math.floor(Date.now() / 1000);
+
+                // Add 12 hours (of seconds) to our last update, m3u should still be the same
+                if (source.last_updated + 86400 >= rightNow && source.healthy === 1) {
+                    // have we parsed the initial array of streams?
+                    if (!this.epgParsed) {
+                        console.log(`[Piparr][StreamManager] scanning epg ${source.name} for initial population`);
+
+                        await this.ParseEPG(source, epgRemap);
+
+                        continue;
+                    }
+
+                    console.log(`[Piparr][StreamManager] epg ${source.name} was updated in the last 12 hours, skipping`);
+
+                    continue;
+                }
+
+                // set path where stream is stored
+                const streamsOut = path.join(Piparr.dataDir, `epg-${source.id}.xml`);
+
+                // update record in db
+                await DatabaseEngine.RunSafe(`UPDATE epgsources SET healthy = ? WHERE id = ?`, [2, source.id]);
+
+                // notify will now update
+                console.log(`[Piparr][StreamManager] will now update epg source ${source.name} -> ${source.epg}`);
+
+                // create http request
+                const response = await fetch(source.epg, {
+                    method: "GET"
+                });
+
+                // ensure response body is not null
+                if (!response.body) {
+                    throw new Error("Response body is null");
+                }
+
+                // create a write stream to the file system
+                const writeStream = fs.createWriteStream(streamsOut);
+
+                // convert the response body to a Node.js readable stream
+                const readableStream = Readable.fromWeb(response.body as any);
+
+                // pipe the readable stream to the write stream
+                readableStream.pipe(writeStream);
+
+                // wait for the stream to finish
+                await new Promise((resolve, reject) => {
+                    writeStream.on('finish', resolve);
+                    writeStream.on('error', reject);
+                });
+
+                // notify update
+                console.log(`[Piparr][StreamManager] got updated streams for ${source.name}`);
+
+
                 // await until we are done parsing
                 await this.ParseEPG(source, epgRemap);
 
                 // mark as healthy
-                await DatabaseEngine.RunSafe(`UPDATE epgsources SET last_updated = ?, healthy = ? WHERE id = ?`, [rightNow.toISOString(), 1, source.id]);
+                await DatabaseEngine.RunSafe(`UPDATE epgsources SET last_updated = ?, healthy = ? WHERE id = ?`, [rightNow, 1, source.id]);
             } catch(error) {
                 console.warn(`[Piparr][StreamManager] failed to update epg ${source.name}, will try again next task`);
 
                 await DatabaseEngine.RunSafe(`UPDATE epgsources SET healthy = ? WHERE id = ?`, [0, source.id]);
             }
-
-            // wait
-            await Timers.setTimeout(1000);
         }
+
+        // have we built the initial values
+        if (!this.epgParsed)
+            this.epgParsed = true;
     }
 
     public static async ParseEPG(epg : EPGSource, epgRemapMap : { [key : string] : string }) {
@@ -332,14 +333,16 @@ export default class StreamManager {
 
     public static async MonitorStreams() {
         // fetch streams every 1 hour
+        // TODO: set this as a setting
         setInterval(async () => {
             await this.FetchStreams();
         }, 3.6e+6);
 
-        // refresh epg every 6 hours
+        // refresh epg every 24 hours
+        // TODO: set this as a setting
         setInterval(async () => {
             await this.FetchEPGSources();
-        }, 2.16e+7);
+        }, 8.64e+7);
 
         await this.FetchStreams();
         await this.FetchEPGSources();
