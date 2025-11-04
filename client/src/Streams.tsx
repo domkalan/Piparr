@@ -180,6 +180,17 @@ export const StreamManager = () => {
                                 <div className="fw-bold">Playlist vs Direct?</div>
                                 A playlist stream is a collection of streams often offered through IPTV service streams. A direct stream is a single source stream that usually only broadcasts one channel. Direct streams are most commonly used for local TV stations.
                             </li>
+                            <li className="list-group-item">
+                                <div className="fw-bold">Raw Stream URLs:</div>
+                                Not using a HDHomeRun compatible service or need a raw m3u file?
+                                <ul>
+                                    {streams.map((provider : any, i : number) => {
+                                        return (
+                                            <li><b>{provider.id}:</b> <code>{`${window.location.origin}/static/stream-${provider.id}.m3u`}</code></li>
+                                        );
+                                    })}
+                                </ul>
+                            </li>
                         </ol>
                         <a className="wiki-link independent-link" href="https://github.com/domkalan/Piparr/wiki" target="_blank">Open Piparr wiki</a>
                     </div>

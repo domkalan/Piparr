@@ -123,6 +123,11 @@ export default class StreamManager {
                 output: streamsOutScrub
             }, 60000) as any;
 
+            // copy the scrubbed m3u8 to static
+            const streamsOutStatic = path.resolve(path.join(`./static/stream-${stream.id}.m3u`));
+
+            fs.copyFileSync(streamsOutScrub, streamsOutStatic);
+
             const newStreams: ChannelSourceInternal[] = [];
 
             let streamId = 0;
