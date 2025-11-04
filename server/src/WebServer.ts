@@ -195,6 +195,28 @@ export default class WebServer {
             })
         });
 
+        // API route to update channel information
+        fastify.put('/api/channels/:channelId', async (req, res) => {
+            const params = req.params as any;
+            const payload = req.body as any;
+
+            const channels = await DatabaseEngine.All(`SELECT * FROM channels WHERE id = ${params.channelId};`) as Channel[];
+
+            if (channels.length === 0) {
+                console.warn(`the requested channel was not found`)
+
+                res.status(404);
+
+                res.send(404);
+
+                return;
+            }
+
+            console.log(payload);
+
+            await DatabaseEngine.RunSafe(`UPDATE channels SET name = ?, logo = ?, epg = ? WHERE id = ?`, [ payload.name, payload.logo, payload.epg, channels[0].id ]);
+        });
+
         // API route to update stream sources connected to a channel
         fastify.put('/api/channels/:channelId/streams', async (req, res) => {
             const params = req.params as any;

@@ -102,6 +102,31 @@ export const ChannelManager = () => {
         const channelRes : any = await channelReq.json();
     }
 
+    // Send a put request to update the channel information
+    const updateChannelInfo = async (event: React.FormEvent<Element>) => {
+         event.preventDefault();
+        
+        const form = event.target as HTMLFormElement;
+
+        const formData = FormDataCommon.CollectForm(form);
+
+        const channelReq = await fetch('/api/channels/' + channel.id, {
+            method: 'PUT',
+            headers: {
+                'content-type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        });
+
+        const channelNew = Object.assign({}, channel)
+
+        channelNew.name = formData.name;
+        channelNew.logo = formData.logo;
+        channelNew.epg = formData.epg;
+
+        setChannel(channelNew)
+    }
+
     // Delete the channel stream sources, clean wipe
     const deleteChannelSources = async (event: React.FormEvent<Element>) => {
         event.preventDefault();
@@ -138,7 +163,7 @@ export const ChannelManager = () => {
                     <div className="col-sm-12 col-md-9">
                         <div>
                             <h5>Guide Settings</h5><hr/>
-                            <form onSubmit={(e) => { e.preventDefault(); }}>
+                            <form onSubmit={(e) => { updateChannelInfo(e); }}>
                                 <div className='form-group'>
                                     <label>Channel Name</label>
                                     <input className="form-control" name="name" type="text" placeholder='ACME 24/7' required defaultValue={channel.name}/>
@@ -152,7 +177,7 @@ export const ChannelManager = () => {
                                 <div className='form-group'>
                                     <label>Logo</label>
                                     <input className="form-control" name="logo" type="text" placeholder='https://example.com/logo.png' defaultValue={channel.logo}/>
-                        </div>
+                                </div>
 
                                 <div className='form-group'>
                                     <label>EPG Name</label>
