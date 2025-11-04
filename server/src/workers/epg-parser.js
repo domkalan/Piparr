@@ -18,7 +18,7 @@ const input = fs.createReadStream(inputPath, { encoding: "utf8" });
 const output = fs.createWriteStream(outputPath, { encoding: "utf8" });
 
 // Write the XML header to the output file
-output.write('<?xml version="1.0" encoding="UTF-8"?>\n<tv>\n');
+output.write('<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE tv SYSTEM "xmltv.dtd">\n');
 
 // Initialize variables for tracking current XML tags, channels, and programs
 const allowedChannels = new Set();
@@ -39,6 +39,8 @@ saxStream.on("opentag", (node) => {
     currentProgram = { attrs: node.attributes, title: "", subtitle: "", desc: "" };
   } else if (node.name === 'display-name') {
     currentChannel.displayNameAttrs = node.attributes;
+  } else if (node.name === 'tv') {
+    output.write(`<tv date="${node.attributes.date}" generator-info-name="${node.attributes['generator-info-name']}" generator-info-url="${node.attributes['generator-info-url']}" source-info-name="${node.attributes['source-info-name']}" source-info-url="${node.attributes['source-info-url']}">\n`)
   }
 });
 
@@ -65,7 +67,9 @@ saxStream.on("closetag", (tagName) => {
       allowedChannels.add(currentChannel.id);
       output.write(`  <channel id="${currentChannel.id}">\n`);
       for (const name of currentChannel.displayNames) {
-        output.write(`    <display-name>${name.value}</display-name>\n`);
+        const nameScrub = name.value.replace(/&/g, '&amp;');
+
+        output.write(`    <display-name lang="${currentChannel.displayNameAttrs.lang}">${nameScrub}</display-name>\n`);
       }
       output.write("  </channel>\n");
     }
@@ -83,9 +87,12 @@ saxStream.on("closetag", (tagName) => {
   if (tagName === "programme") {
     const chID = currentProgram.attrs.channel;
     if (allowedChannels.has(chID)) {
+      const titleScrub = currentProgram.title.replace(/&/g, '&amp;');
+      const descScrub = currentProgram.desc.replace(/&/g, '&amp;')
+
       output.write(`  <programme start="${currentProgram.attrs.start}" stop="${currentProgram.attrs.stop}" channel="${chID}">\n`);
-      if (currentProgram.title) output.write(`    <title>${currentProgram.title}</title>\n`);
-      if (currentProgram.desc) output.write(`    <desc>${currentProgram.desc}</desc>\n`);
+      if (currentProgram.title) output.write(`    <title>${titleScrub}</title>\n`);
+      if (currentProgram.desc) output.write(`    <desc>${descScrub}</desc>\n`);
       output.write("  </programme>\n");
     }
     currentProgram = null;
