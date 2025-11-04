@@ -212,7 +212,7 @@ export abstract class DatabaseEngine {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             original TEXT NOT NULL,
             new TEXT NOT NULL,
-            epgsources TEXT
+            epgsource TEXT
         );`);
         console.log('[Piparr][database] table "epgremaps" created');
 
