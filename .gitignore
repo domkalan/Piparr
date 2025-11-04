@@ -143,3 +143,6 @@ static
 
 #.vscode stuff
 .vscode/
+
+# jetbrains
+.idea/
