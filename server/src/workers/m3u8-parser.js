@@ -8,6 +8,12 @@ if (isMainThread)
 
 const inputPath = workerData.input;
 const outputPath = workerData.output;
+const idFilter = workerData.idRegex;
+const idRegexp = new RegExp(idFilter, 'i');
+const nameFilter = workerData.nameRegex;
+const nameRegexp = new RegExp(nameFilter, 'i');
+const groupFilter = workerData.groupRegex;
+const groupRegexp = new RegExp(groupFilter, 'i');
 
 const input = fs.createReadStream(inputPath, { encoding: "utf8" });
 const rl = readline.createInterface({ input, crlfDelay: Infinity });
@@ -51,14 +57,26 @@ async function run() {
     // Parse #EXTINF
     if (line.startsWith("#EXTINF")) {
       lastExtInf = parseExtInf(line);
-      if (lastExtInf) {
+
+      // Apply filtering based on idRegex, nameRegex, and groupRegex
+      const tvgId = lastExtInf?.attrs["tvg-id"] || "";
+      const streamName = lastExtInf?.title || "";
+      const groupTitle = lastExtInf?.attrs["group-title"] || "";
+
+      if ((idFilter && !idRegexp.test(tvgId)) ||
+          (nameFilter && !nameRegexp.test(streamName)) ||
+          (groupFilter && !groupRegexp.test(groupTitle))) {
+        lastExtInf = null; // Skip this EXTINF if it doesn't match the filters
+        continue;
       }
-      out.write(line + "\n");
-      continue;
+
+      continue; // Do not write the EXTINF line yet, wait for the URL
     }
 
     // Handle URL following EXTINF
     if (!line.startsWith("#") && line.trim() !== "" && lastExtInf) {
+      // Write the EXTINF line and the URL together if the filters matched
+      out.write(`#EXTINF:${lastExtInf.duration},${lastExtInf.title}\n`);
       out.write(line + "\n");
 
       // Collect simplified info for JSON output
@@ -75,7 +93,13 @@ async function run() {
     }
 
     // Pass through any other tags
-    out.write(line + "\n");
+    if (line.startsWith("#")) {
+      // Only write non-EXTINF tags if necessary (e.g., #EXTM3U)
+      if (line.startsWith("#EXTM3U")) {
+        out.write(line + "\n");
+      }
+      continue;
+    }
   }
 
   out.end();

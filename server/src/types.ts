@@ -5,7 +5,9 @@ export interface Stream {
     stream: string, // Stream URL for loading
     connections: number, // Number of active connections
     last_updated: number, // Timestamp of the last update
-    regex?: string // Optional regex pattern for stream filtering
+    nameRegex?: string, // Regex pattern for filtering by name
+    idRegex?: string, // Regex pattern for filtering by id
+    groupRegex?: string, // Regex pattern for filtering by group
     type: string // Type of the stream (e.g., direct, playlist),
     healthy: number // The current health status of the stream (-1 retrying, 0 failed, 1 healthy, 2 refreshing)
 }
@@ -40,7 +42,9 @@ export interface EPGSource {
     name: string, // Name of the EPG source
     epg: string, // EPG data or URL
     last_updated: number, // Timestamp of the last update
-    regex: string, // Regex pattern for filtering EPG data
+    langRegex?: string, // Regex pattern for filtering EPG data by lang
+    nameRegex?: string, // Regex pattern for filtering by name
+    idRegex?: string, // Regex pattern for filtering by id
     healthy: number // The current health status for the epg data (-1 retrying, 0 failed, 1 healthy, 2 refreshing)
 }
 

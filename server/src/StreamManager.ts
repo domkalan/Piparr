@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import Timers from 'node:timers/promises'
 import { Readable } from 'node:stream';
+import { exec } from 'node:child_process';
 
 import Piparr from ".";
 
@@ -34,7 +35,7 @@ export default class StreamManager {
                 const streamsOut = path.join(Piparr.dataDir, `stream-${stream.id}.m3u`);
 
                 // Add 12 hours (of seconds) to our last update, m3u should still be the same
-                if (stream.last_updated + 43200 >= rightNow && stream.healthy === 1) {
+                if (stream.last_updated + 43200 >= rightNow && stream.healthy === 1 && fs.existsSync(streamsOut)) {
                     // have we parsed the initial array of streams?
                     if (!this.streamsParsed) {
                         console.log(`[Piparr][StreamManager] scanning ${stream.name} for initial population`);
@@ -114,7 +115,10 @@ export default class StreamManager {
             // Run the m3u8-parser worker script in a background thread
             const parsedData = await BackgroundThreading.RunAsync(__dirname + '/workers/m3u8-parser.js', {
                 input: streamsOut,
-                output: streamsOutScrub
+                output: streamsOutScrub,
+                nameRegex: stream.nameRegex || '',
+                idRegex: stream.idRegex || '',
+                groupRegex: stream.groupRegex || ''
             }, 60000) as any;
 
             // copy the scrubbed m3u8 to static
@@ -199,8 +203,11 @@ export default class StreamManager {
                 // calc current time
                 const rightNow = Math.floor(Date.now() / 1000);
 
+                // set path where stream is stored
+                const streamsOut = path.join(Piparr.dataDir, `epg-${source.id}.xml`);
+
                 // Add 12 hours (of seconds) to our last update, m3u should still be the same
-                if (source.last_updated + 86400 >= rightNow && source.healthy === 1) {
+                if (source.last_updated + 86400 >= rightNow && source.healthy === 1  && fs.existsSync(streamsOut)) {
                     // have we parsed the initial array of streams?
                     if (!this.epgParsed) {
                         console.log(`[Piparr][StreamManager] scanning epg ${source.name} for initial population`);
@@ -214,9 +221,6 @@ export default class StreamManager {
 
                     continue;
                 }
-
-                // set path where stream is stored
-                const streamsOut = path.join(Piparr.dataDir, `epg-${source.id}.xml`);
 
                 // update record in db
                 await DatabaseEngine.RunSafe(`UPDATE epgsources SET healthy = ? WHERE id = ?`, [2, source.id]);
@@ -249,9 +253,14 @@ export default class StreamManager {
                     writeStream.on('error', reject);
                 });
 
+                if (source.epg.endsWith('.gz')) {
+                    console.log(`[Piparr][StreamManager] stream ends with .gz, assuming it is gzipped and will decompress`);
+
+                    await this.UngzipFile(streamsOut);
+                }
+
                 // notify update
                 console.log(`[Piparr][StreamManager] got updated streams for ${source.name}`);
-
 
                 // await until we are done parsing
                 await this.ParseEPG(source, epgRemap);
@@ -279,15 +288,13 @@ export default class StreamManager {
         // Resolve the path to the scrubbed xml file
         const streamsOutScrub = path.join(Piparr.dataDir, `epg-${epg.id}-scrub.xml`);
 
-        // Resolve the path to the output .json file
-        const streamsOutJson = path.join(Piparr.dataDir, `epg-${epg.id}.json`);
-
         // Run the epg-parser worker script in a background thread
         await BackgroundThreading.RunAsync(__dirname + '/workers/epg-parser.js', { 
             input: streamsOut,
             output: streamsOutScrub,
-            outputJson: streamsOutJson,
-            filter: epg.regex,
+            langRegex: epg.langRegex || '',
+            nameRegex: epg.nameRegex || '',
+            idRegex: epg.idRegex || '',
             epgRemapMap: epgRemapMap
         }, 60000 * 5);
 
@@ -300,6 +307,34 @@ export default class StreamManager {
 
         // give the disk time to flush the write
         await Timers.setTimeout(5000);
+    }
+
+    // Some EPG providers use .gz to compress data, we should handle it here
+    public static UngzipFile(source : string) {
+        return new Promise((resolve, reject) => {
+            // Rename to .gz since gunzip renames it back
+            const sourceGz = source + '.gz';
+
+            // Run the rename
+            fs.rename(source, sourceGz, (err) => {
+                if (err) {
+                    return reject(err);
+                }
+
+                // Run the gunzip command, wait for it to finish
+                exec(`gunzip ${sourceGz}`, {}, (err, out) => {
+                    if (err) {
+                        return reject(err);
+                    }
+
+                    console.log(`[Piparr][StreamManager][Gunzip] ${sourceGz} -> ${source}`);
+
+                    // it finished
+                    resolve(source);
+                });
+            })
+
+        })
     }
 
     // Remove streams from local disk

@@ -193,7 +193,9 @@ export abstract class DatabaseEngine {
             type TEXT NOT NULL,
             connections INTEGER DEFAULT 1,
             last_updated INTEGER NOT NULL,
-            regex TEXT,
+            nameRegex TEXT,
+            idRegex TEXT,
+            groupRegex TEXT,
             healthy INTEGER DEFAULT 1
         );`);
         console.log('[Piparr][database] table "streams" created');
@@ -203,7 +205,9 @@ export abstract class DatabaseEngine {
             name TEXT NOT NULL,
             epg TEXT NOT NULL,
             last_updated INTEGER NOT NULL,
-            regex TEXT,
+            idRegex TEXT,
+            nameRegex TEXT,
+            langRegex TEXT,
             healthy INTEGER DEFAULT 1
         );`);
         console.log('[Piparr][database] table "epgsources" created');

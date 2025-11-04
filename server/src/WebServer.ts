@@ -56,13 +56,15 @@ export default class WebServer {
         fastify.post('/api/streams', async (req, res) => {
             const payload = req.body as any;
 
-            const streamId = await DatabaseEngine.Insert('INSERT INTO streams (name, stream, connections, last_updated, type, regex) VALUES (?, ?, ?, ?, ?, ?);', [
+            const streamId = await DatabaseEngine.Insert('INSERT INTO streams (name, stream, connections, last_updated, type, nameRegex, idRegex, groupRegex) VALUES (?, ?, ?, ?, ?, ?, ?, ?);', [
                 payload.name,
                 payload.stream,
                 Number(payload.connections),
                 0,
                 payload.type,
-                ''
+                payload.nameRegex,
+                payload.idRegex,
+                payload.groupRegex
             ]);
 
             res.send({
@@ -414,10 +416,12 @@ export default class WebServer {
         fastify.post('/api/epgsources', async (req, res) => {
             const payload = req.body as any;
 
-            const epgId = await DatabaseEngine.Insert('INSERT INTO epgsources (name, epg, regex, last_updated) VALUES (?, ?, ?, ?);', [
+            const epgId = await DatabaseEngine.Insert('INSERT INTO epgsources (name, epg, langRegex, nameRegex, idRegex, last_updated) VALUES (?, ?, ?, ?, ?, ?);', [
                 payload.name,
                 payload.epg,
-                payload.regex,
+                payload.langRegex,
+                payload.nameRegex,
+                payload.idRegex,
                 0
             ]);
 

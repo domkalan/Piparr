@@ -9,7 +9,12 @@ if (isMainThread)
 // Define input and output paths, language filter, and EPG remap map from worker data
 const inputPath = workerData.input;
 const outputPath = workerData.output;
-const langFilter = workerData.filter;
+const langFilter = workerData.langRegex;
+const langRegexp = new RegExp(langFilter, 'i');
+const nameFilter = workerData.nameRegex;
+const nameRegexp = new RegExp(nameFilter, 'i');
+const idFilter = workerData.idRegex;
+const idRegexp = new RegExp(idFilter, 'i');
 const epgRemapMap = workerData.epgRemapMap
 
 // Create SAX stream for XML parsing and file streams for input and output
@@ -25,6 +30,7 @@ const allowedChannels = new Set();
 let currentTag = null;
 let currentChannel = null;
 let currentProgram = null;
+let currentNode = null;
 let buffer = "";
 let includeCurrentChannel = false;
 
@@ -33,15 +39,53 @@ saxStream.on("opentag", (node) => {
   currentTag = node.name;
 
   if (node.name === "channel") {
-    currentChannel = { id: epgRemapMap[node.attributes.id] || node.attributes.id, displayNames: [], displayNameAttrs: [] };
-    includeCurrentChannel = false;
+    currentChannel = { 
+      id: epgRemapMap[node.attributes.id] || node.attributes.id,
+      displayNames: [],
+      displayIcons: []
+    };
+
+    // if no filters are set, we should include by default
+    if (idFilter === '' && nameFilter === '' && idFilter === '') {
+      includeCurrentChannel = true;
+    } else {
+      // reset value to false
+      includeCurrentChannel = false;
+    }
   } else if (node.name === "programme") {
-    currentProgram = { attrs: node.attributes, title: "", subtitle: "", desc: "" };
-  } else if (node.name === 'display-name') {
-    currentChannel.displayNameAttrs = node.attributes;
+    currentProgram = { 
+      attrs: node.attributes,
+      title: "",
+      subtitle: "",
+      desc: ""
+    };
   } else if (node.name === 'tv') {
-    output.write(`<tv date="${node.attributes.date}" generator-info-name="${node.attributes['generator-info-name']}" generator-info-url="${node.attributes['generator-info-url']}" source-info-name="${node.attributes['source-info-name']}" source-info-url="${node.attributes['source-info-url']}">\n`)
+    output.write(`<tv`);
+
+    if (node.attributes.date) {
+      output.write(` date="${node.attributes.date}"`);
+    }
+
+    if (node.attributes['generator-info-name']) {
+      output.write(` generator-info-name="${node.attributes['generator-info-name']}"`);
+    }
+
+    if (node.attributes['generator-info-url']) {
+      output.write(` generator-info-url="${node.attributes['generator-info-url']}"`);
+    }
+
+    if (node.attributes['source-info-name']) {
+      output.write(` source-info-name="${node.attributes['source-info-name']}"`);
+    }
+
+    if (node.attributes['source-info-url']) {
+      output.write(` source-info-url="${node.attributes['source-info-url']}"`);
+    }
+
+    output.write(`>\n`);
   }
+
+  currentNode = node;
 });
 
 saxStream.on("text", (text) => {
@@ -51,25 +95,75 @@ saxStream.on("text", (text) => {
 
 saxStream.on("closetag", (tagName) => {
   if (tagName === "display-name" && currentChannel) {
+    // trim the name
     const name = buffer.trim();
+
+    // create base object for name
+    let displayName = { value: null, lang: null };
+
     if (name.length) {
-      currentChannel.displayNames.push({ value: name });
+      displayName.value = name;
+
+      // does the display name have a lang value set?
+      if (currentNode.attributes.lang) {
+        displayName.lang = currentNode.attributes.lang;
+      }
+
+      currentChannel.displayNames.push(displayName);
     }
 
-    // TODO: switch this out with proper regex
-    if (langFilter !== '' && (currentChannel.displayNameAttrs.lang || '').toLowerCase().includes(langFilter.toLowerCase())) {
-      includeCurrentChannel = true;
+    // Allow for filtering based on display name's defined language
+    // If filter is set to EN, only channels with display language of "EN" will be passed
+    if (langFilter !== '' && displayName.lang !== null) {
+      if (langRegexp.test(displayName.lang)) {
+        includeCurrentChannel = true;
+      }
+    }
+
+    // Filter based on channel names, if filter is set to ACME247
+    // Only channels with ACME247 in the name will be passed
+    if (nameFilter !== '') {
+      if (nameRegexp.test(name)) {
+        includeCurrentChannel = true;
+      }
+    }
+  }
+
+  // get the channel icon
+  if (tagName === 'icon' && currentChannel) {
+    if (currentNode.attributes.icon) {
+      this.currentChannel.displayIcons.push(currentNode.attributes.icon);
     }
   }
 
   if (tagName === "channel") {
+
+    // Filter out based on channel ids, if filter is set to .us
+    // Only channels with .us in their id will be passed
+    if (idFilter !== '') {
+      if (idRegexp.test(currentChannel.id)) {
+        includeCurrentChannel = true;
+      }
+    }
+
     if (includeCurrentChannel) {
       allowedChannels.add(currentChannel.id);
       output.write(`  <channel id="${currentChannel.id}">\n`);
-      for (const name of currentChannel.displayNames) {
-        const nameScrub = name.value.replace(/&/g, '&amp;');
 
-        output.write(`    <display-name lang="${currentChannel.displayNameAttrs.lang}">${nameScrub}</display-name>\n`);
+      // write channel display names
+      for (const name of currentChannel.displayNames) {
+        output.write(`    <display-name`);
+
+        if (name.lang) {
+          output.write(` lang="${name.lang}"`)
+        }
+
+        output.write(`>${name.value}</display-name>\n`)
+      }
+
+      // write icons
+      for(const icon of currentChannel.displayIcons) {
+        output.write(`    <icon src="${icon}" />`);
       }
       output.write("  </channel>\n");
     }
@@ -95,6 +189,7 @@ saxStream.on("closetag", (tagName) => {
       if (currentProgram.desc) output.write(`    <desc>${descScrub}</desc>\n`);
       output.write("  </programme>\n");
     }
+
     currentProgram = null;
   }
 
@@ -106,7 +201,7 @@ saxStream.on("end", () => {
   output.write("</tv>\n");
   output.end();
 
-  parentPort.postMessage(workerData.output)
+  parentPort.postMessage({})
 });
 
 input.pipe(saxStream);

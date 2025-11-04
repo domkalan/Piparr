@@ -164,6 +164,22 @@ export const StreamManager = () => {
                                     <small>Enter <code>0</code> if this stream does not have a connection limit.</small>
                                 </div>
 
+
+                                <div className='form-group'>
+                                    <label>ID Filtering</label>
+                                    <input className="form-control" name="idRegex" type="text" placeholder='.us'/>
+                                </div>
+
+                                <div className='form-group'>
+                                    <label>Name Filtering</label>
+                                    <input className="form-control" name="nameRegex" type="text" placeholder='ACME Live News'/>
+                                </div>
+
+                                <div className='form-group'>
+                                    <label>Group Filtering</label>
+                                    <input className="form-control" name="groupRegex" type="text" placeholder='US|LiveTV'/>
+                                </div>
+
                                 <button className='btn btn-primary'>Create</button>
                             </form>
                         </div>

@@ -201,8 +201,18 @@ export const EPGManager = () => {
                                 </div>
 
                                 <div className='form-group'>
-                                    <label>Filter By</label>
-                                    <input className="form-control" name="regex" type="text" placeholder='en' required/>
+                                    <label>Display Name Language Filter</label>
+                                    <input className="form-control" name="langRegex" type="text" placeholder='en'/>
+                                </div>
+
+                                <div className='form-group'>
+                                    <label>Channel Name Filter</label>
+                                    <input className="form-control" name="nameRegex" type="text" placeholder='ACME247'/>
+                                </div>
+
+                                <div className='form-group'>
+                                    <label>ID Filter</label>
+                                    <input className="form-control" name="idRegex" type="text" placeholder='.us'/>
                                 </div>
 
                                 <div className='form-group'>
