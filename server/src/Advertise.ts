@@ -39,7 +39,7 @@ export class Advertise {
     return {
       FriendlyName: 'Piparr',
       Manufacturer: 'Piparr - Silicondust',
-      ManufacturerURL: 'https://github.com/chrisbenincasa/Piparr',
+      ManufacturerURL: 'https://github.com/domkalan/Piparr',
       ModelNumber: 'HDTC-2US',
       FirmwareName: 'hdhomeruntc_atsc',
       TunerCount: 1,
