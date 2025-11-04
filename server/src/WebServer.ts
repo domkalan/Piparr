@@ -571,14 +571,6 @@ export default class WebServer {
             res.send('');
         });
 
-        fastify.get('/guides/:guideNum/guide.xml', async (req, res) => {
-            const params = req.params as any;
-
-            const guidePath = path.resolve(path.join('./data/static', `epg-${params.guideNum}.xml`))
-
-            return res.sendFile(guidePath);
-        });
-
         // Get information about the HDHomeRun device
         fastify.get('/device.xml', (req, res) => {
             const host = req.protocol + '://' + req.hostname;
