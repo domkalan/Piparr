@@ -7,6 +7,8 @@ const { parseM3U } = require("@tunarr/playlist");
 if (isMainThread)
     throw new Error('Cannot run from main thread, this is a background task!');
 
+// Parse HLS/M3U using the m3u parser
 const m3u8 = parseM3U(workerData);
 
+// Return the message
 parentPort.postMessage({m3u8})

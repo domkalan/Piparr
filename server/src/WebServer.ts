@@ -17,7 +17,7 @@ export default class WebServer {
      * Start our web server
      */
     public static Run() {
-        // Create the fastify web server with logger enabled
+        // Create the Fastify web server with logger enabled
         const fastify = Fastify({
             logger: true
         });
@@ -543,7 +543,7 @@ export default class WebServer {
 
         // Generate the EPG data into an XMLTV output
         fastify.get('/guide.xml', async (req, res) => {
-            // TODO: need to figure out how to combine epg.xml for this to work
+            // TODO: Combine EPG XML files for proper guide generation
 
             res.send('');
         });

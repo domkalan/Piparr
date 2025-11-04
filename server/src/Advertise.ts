@@ -2,6 +2,7 @@ import { Server as SSDP } from 'node-ssdp';
 
 /**
  * SSDP Advertising Service
+ * This class handles the SSDP (Simple Service Discovery Protocol) advertising for the Piparr application.
  */
 export class Advertise {
   private server: SSDP;
@@ -29,6 +30,11 @@ export class Advertise {
     return this.server;
   }
 
+  /**
+   * Generates the HDHomeRun device information in JSON format.
+   * @param {string} host - The base URL of the server.
+   * @returns {object} The HDHomeRun device information.
+   */
   getHdhrDevice(host: string) {
     return {
       FriendlyName: 'Piparr',
@@ -45,6 +51,11 @@ export class Advertise {
     };
   }
 
+  /**
+   * Generates the HDHomeRun device information in XML format.
+   * @param {string} host - The base URL of the server.
+   * @returns {string} The HDHomeRun device information in XML format.
+   */
   getHdhrDeviceXml(host: string) {
     return `<root xmlns="urn:schemas-upnp-org:device-1-0">
           <URLBase>${host}</URLBase>
@@ -66,6 +77,11 @@ export class Advertise {
 
   private static _instance: Advertise;
 
+  /**
+   * Singleton instance of the Advertise class.
+   * Ensures only one instance of the Advertise class is created.
+   * @returns {Advertise} The singleton instance.
+   */
   public static Instance() {
     if (!this._instance)
         this._instance = new Advertise();

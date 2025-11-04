@@ -1,46 +1,50 @@
+// Interface representing a stream with its properties
 export interface Stream {
-    id: number,
-    name: string,
-    stream: string,
-    connections: number,
-    last_updated: string,
-    regex?: string
-    type: string
+    id: number, // Unique identifier for the stream
+    name: string, // Name of the stream
+    stream: string, // Stream URL for loading
+    connections: number, // Number of active connections
+    last_updated: string, // Timestamp of the last update
+    regex?: string // Optional regex pattern for stream filtering
+    type: string // Type of the stream (e.g., direct, playlist)
 }
 
+// Interface representing a channel with its properties
 export interface Channel {
-    id: number,
-    name: string,
-    logo?: string,
-    channel_number: number
+    id: number, // Unique identifier for the channel
+    name: string, // Name of the channel
+    channel_number: number // Channel number
 }
 
+// Interface representing a source linked to a channel
 export interface ChannelSource {
-    id: number,
-    channel_id: number,
-    stream_id: number,
-    stream_channel: string
+    id: number, // Unique identifier for the channel source
+    channel_id: number, // ID of the associated channel
+    stream_id: number, // ID of the associated stream
+    stream_channel: string // Identifier for the stream channel
 }
 
+// Internal representation of a channel source with additional properties
 export interface ChannelSourceInternal {
-    id: string, 
-    name: string,
-    stream: number,
-    logo?: string,
+    id: string, // Unique identifier for the internal source
+    name: string, // Name of the source
+    stream: number, // ID of the associated stream
 
-    endpoint: string
+    endpoint: string // Endpoint URL for accessing the source
 }
 
+// Interface representing an EPG (Electronic Program Guide) source
 export interface EPGSource {
-    id: number,
-    name: string,
-    epg: string,
-    last_updated: string,
-    regex: string,
-    healthy: number
+    id: number, // Unique identifier for the EPG source
+    name: string, // Name of the EPG source
+    epg: string, // EPG data or URL
+    last_updated: string, // Timestamp of the last update
+    regex: string, // Regex pattern for filtering EPG data
+    healthy: number // Health status of the EPG source
 }
 
+// Interface for remapping EPG data
 export interface EPGRemap {
-    original: string,
-    new: string
+    original: string, // Original EPG data to be remapped
+    new: string // New EPG data after remapping
 }

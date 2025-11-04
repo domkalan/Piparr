@@ -1,3 +1,4 @@
+// Import required modules for worker thread and XML parsing
 const { parentPort, workerData, isMainThread } = require('worker_threads');
 const fs = require('fs');
 const sax = require('sax');
@@ -5,17 +6,21 @@ const sax = require('sax');
 if (isMainThread)
     throw new Error('Cannot run from main thread, this is a background task!');
 
+// Define input and output paths, language filter, and EPG remap map from worker data
 const inputPath = workerData.input;
 const outputPath = workerData.output;
 const langFilter = workerData.filter;
 const epgRemapMap = workerData.epgRemapMap
 
+// Create SAX stream for XML parsing and file streams for input and output
 const saxStream = sax.createStream(true, { trim: true });
 const input = fs.createReadStream(inputPath, { encoding: "utf8" });
 const output = fs.createWriteStream(outputPath, { encoding: "utf8" });
 
+// Write the XML header to the output file
 output.write('<?xml version="1.0" encoding="UTF-8"?>\n<tv>\n');
 
+// Initialize variables for tracking current XML tags, channels, and programs
 const allowedChannels = new Set();
 let currentTag = null;
 let currentChannel = null;
@@ -23,7 +28,7 @@ let currentProgram = null;
 let buffer = "";
 let includeCurrentChannel = false;
 
-// SAX event handlers
+// SAX event handlers for parsing XML
 saxStream.on("opentag", (node) => {
   currentTag = node.name;
 
