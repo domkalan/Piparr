@@ -576,6 +576,10 @@ export default class WebServer {
                     // 'Transfer-Encoding': 'chunked' is implied for chunked streaming
                 });
 
+                // TODO: look into hardware encoding
+                // TODO: implement streaming limits
+                // TODO: connection sharing?
+
                 // Spawn ffmpeg
                 const ffmpeg = spawn('ffmpeg', [
                     '-hide_banner',

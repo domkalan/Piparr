@@ -19,10 +19,10 @@ sudo docker run -d --name piparr --restart always -v /opt/piparr-data:/app/data 
 - [x] - Periodically save parsed streams to disk for faster startup.
 - [x] - Document code, create a wiki, also create an install guide.
 - [x] - Add missing comments to source code.
-- [ ] - Cleanup code, protect against sql injections. *(in progress)*
+- [x] - Cleanup code, protect against sql injections.
+- [x] - Regex filtering for large stream providers.
+- [ ] - Implement stream modes, redirect, proxy, local transcode (via ffmpeg). *(in progress)*
 - [ ] - Client UI needs to be secured via a password, http auth, token.
-- [ ] - Regex filtering for large stream providers.
-- [ ] - Implement stream modes, redirect, proxy, local transcode (via ffmpeg).
 - [ ] - Implement connection tracking, don't allow more than allowed streams for provider.
 
 

@@ -17,6 +17,7 @@ export default class StreamManager {
     // Have we done the initial parsing of streams
     public static streamsParsed: boolean = false;
 
+    // TODO: need to implement custom logo patching
     public static async FetchStreams() {
         console.log(`[Piparr][StreamManager] fetching streams`);
         
@@ -136,6 +137,8 @@ export default class StreamManager {
 
         console.log(`[Piparr][StreamManager] will combine ${combineM3u.join(', ')} into single file at ${mainStreamOut}`);
 
+        // TODO: we only want to show the streams that have a channel defined, revisit this
+
         // Run the epg-parser worker script in a background thread
         await BackgroundThreading.RunAsync(__dirname + '/workers/m3u8-join.js', { 
             inputs: combineM3u,
@@ -184,19 +187,12 @@ export default class StreamManager {
                     endpoint: channel.url as any
                 }
 
+                // TODO: would this be better to serve from the database instead of memory?
                 // Add the stream object to the newStreams array
                 newStreams.push(streamObject);
 
                 // If the stream type is 'direct', select the first stream and break the loop
                 if (stream.type === 'direct') {
-                    /*const urlParser = new URL(channel.url);
-
-                    if (urlParser.pathname.endsWith('.m3u') || urlParser.pathname.endsWith('.m3u8')) {
-                        // Additional logic can be added here if needed
-                        streamObject.endpoint = ''
-                    }*/
-
-                    // TODO: this might not require break, look into it
                     break;
                 }
 
@@ -216,6 +212,8 @@ export default class StreamManager {
         }
     }
 
+    // TODO: need to implement custom logo patching
+    // TODO: need to implement correct channel numbering for guide, HDHomeRun uses the epg channel id to match the channel number.
     public static async FetchEPGSources() {
         console.log(`[Piparr][StreamManager] fetching streams`);
         
