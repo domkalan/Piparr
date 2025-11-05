@@ -1,5 +1,6 @@
 import path from 'node:path';
 import fs from 'node:fs';
+import { spawn } from 'node:child_process';
 
 import Fastify from 'fastify';
 import FastifyStatic from '@fastify/static';
@@ -564,6 +565,59 @@ export default class WebServer {
             }
             
             const sourceStream = sourceStreams[0];
+
+            // TODO: add toggle setting that allows this to be enabled-always, 
+            // only when needed, or never
+            if (process.env.TRANSCODE === 'always' || (process.env.TRANSCODE === 'only-m3u8' && (sourceStream.endpoint.includes('.m3u8') || sourceStream.endpoint.includes('.m3u')))) {
+                res.raw.writeHead(200, {
+                    'Content-Type': 'video/mp4',
+                    'Cache-Control': 'no-store',
+                    'Connection': 'keep-alive',
+                    // 'Transfer-Encoding': 'chunked' is implied for chunked streaming
+                });
+
+                // Spawn ffmpeg
+                const ffmpeg = spawn('ffmpeg', [
+                    '-hide_banner',
+                    '-loglevel', 'error',
+                    '-fflags', '+genpts+discardcorrupt+igndts',
+                    '-re',                     // read input at native rate
+                    '-i', sourceStream.endpoint,
+                    '-c:v', 'libx264',
+                    '-preset', 'veryfast',     // tune as need
+                    '-c:a', 'aac',
+                    '-f', 'mp4',
+                    '-movflags', 'frag_keyframe+empty_moov', // optimize for streaming
+                    'pipe:1'
+                ]);
+
+                console.log(sourceStream.endpoint)
+
+                // Pipe ffmpeg stdout to response
+                ffmpeg.stdout.pipe(res.raw);
+
+                // Logging stderr for debugging
+                ffmpeg.stderr.on('data', chunk => {
+                    console.error('FFmpeg stderr:', chunk.toString());
+                });
+
+                // On client disconnect, kill ffmpeg
+                req.raw.on('close', () => {
+                    console.log('Client disconnected — killing ffmpeg');
+                    ffmpeg.kill('SIGTERM');
+                });
+
+                // On ffmpeg exit, end response if still open
+                ffmpeg.on('close', (code, signal) => {
+                    console.log(`FFmpeg exited with code ${code} signal ${signal}`);
+                    if (!res.raw.writableEnded) {
+                    res.raw.end();
+                    }
+                });
+
+                // Return nothing since we manually wrote to raw
+                return res;
+            }
 
             res.redirect(sourceStream.endpoint, 302);
         });
