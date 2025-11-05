@@ -132,29 +132,6 @@ export abstract class DatabaseEngine {
      * Run an SQL query and return all
      * @param sql 
      * @param object
-     * @returns 
-     * @deprecated Use AllSafe to prevent against sql injection
-     */
-    public static All(sql: string) {
-        return new Promise((resolve, reject) => {
-            console.log(`[Piparr][database][async][all] running ${sql}`)
-
-            this.instance.all(sql, (err : any, result : any) => {
-                if (err) {
-                    console.error(err);
-
-                    reject(err.message);
-                } else {
-                    resolve(result);
-                }
-            })
-        })
-    }
-
-    /**
-     * Run an SQL query and return all
-     * @param sql 
-     * @param object
      * @returns
      */
     public static AllSafe(sql: string, object: any) {

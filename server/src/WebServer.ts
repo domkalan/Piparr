@@ -47,7 +47,7 @@ export default class WebServer {
         //#region API Routes
         // API route to return streams
         fastify.get('/api/streams', async (req, res) => {
-            const streams = await DatabaseEngine.All(`SELECT * FROM streams;`);
+            const streams = await DatabaseEngine.AllSafe(`SELECT * FROM streams;`, []);
 
             res.send(streams);
         });
@@ -147,7 +147,7 @@ export default class WebServer {
 
         // API route to get channels created
         fastify.get('/api/channels', async (req, res) => {
-            const channels = await DatabaseEngine.All(`SELECT * FROM channels;`);
+            const channels = await DatabaseEngine.AllSafe(`SELECT * FROM channels;`, []);
 
             res.send(channels);
         });
@@ -175,7 +175,7 @@ export default class WebServer {
         fastify.get('/api/channels/:channelId', async (req, res) => {
             const params = req.params as any;
 
-            const channels = await DatabaseEngine.All(`SELECT * FROM channels WHERE id = ${params.channelId};`) as Channel[];
+            const channels = await DatabaseEngine.AllSafe(`SELECT * FROM channels WHERE id = ?;`, [params.channelId]) as Channel[];
 
             if (channels.length === 0) {
                 console.warn(`the requested channel was not found`)
@@ -189,7 +189,7 @@ export default class WebServer {
 
             const channel = channels[0];
 
-            const sources = await DatabaseEngine.All(`SELECT * FROM channel_source WHERE channel_id = ${channel.id};`) as ChannelSource[];
+            const sources = await DatabaseEngine.AllSafe(`SELECT * FROM channel_source WHERE channel_id = ?;`, [channel.id]) as ChannelSource[];
 
             res.send({
                 ...channel,
@@ -202,7 +202,7 @@ export default class WebServer {
             const params = req.params as any;
             const payload = req.body as any;
 
-            const channels = await DatabaseEngine.All(`SELECT * FROM channels WHERE id = ${params.channelId};`) as Channel[];
+            const channels = await DatabaseEngine.AllSafe(`SELECT * FROM channels WHERE id = ?;`, [params.channelId]) as Channel[];
 
             if (channels.length === 0) {
                 console.warn(`the requested channel was not found`)
@@ -239,10 +239,10 @@ export default class WebServer {
             const channel = channels[0];
 
             // fetch all streams
-            const streams = await DatabaseEngine.All(`SELECT * FROM streams`) as Stream[];
+            const streams = await DatabaseEngine.AllSafe(`SELECT * FROM streams;`, []) as Stream[];
 
             // fetch all current sources for this channel
-            const sources = await DatabaseEngine.AllSafe(`SELECT * FROM channel_source WHERE channel_id = ?`, [ channel.id ]) as ChannelSource[];
+            const sources = await DatabaseEngine.AllSafe(`SELECT * FROM channel_source WHERE channel_id = ?;`, [ channel.id ]) as ChannelSource[];
 
             // loop through new provided streams
             for(const sourceId of body.sources) {
@@ -369,7 +369,7 @@ export default class WebServer {
             const channel = channels[0];
 
             // fetch all streams
-            const streams = await DatabaseEngine.All(`SELECT * FROM streams`) as Stream[];
+            const streams = await DatabaseEngine.AllSafe(`SELECT * FROM streams;`, []) as Stream[];
 
             // fetch all current sources for this channel
             const sources = await DatabaseEngine.AllSafe(`SELECT * FROM channel_source WHERE channel_id = ?`, [ channel.id ]) as ChannelSource[];
@@ -407,7 +407,7 @@ export default class WebServer {
 
         // API Route to get epg sources
         fastify.get('/api/epgsources', async (req, res) => {
-            const streams = await DatabaseEngine.All(`SELECT * FROM epgsources;`);
+            const streams = await DatabaseEngine.AllSafe(`SELECT * FROM epgsources;`, []);
 
             res.send(streams);
         });
@@ -485,7 +485,7 @@ export default class WebServer {
 
         // API Route to get epg sources
         fastify.get('/api/epgremaps', async (req, res) => {
-            const streams = await DatabaseEngine.All(`SELECT * FROM epgremaps;`);
+            const streams = await DatabaseEngine.AllSafe(`SELECT * FROM epgremaps;`, []);
 
             res.send(streams);
         });
@@ -523,7 +523,7 @@ export default class WebServer {
         fastify.get('/channels/:number/video', async (req, res) => {
             const params = req.params as any;
 
-            const channels = await DatabaseEngine.All(`SELECT * FROM channels WHERE channel_number = ${params.number};`) as Channel[];
+            const channels = await DatabaseEngine.AllSafe(`SELECT * FROM channels WHERE channel_number = ?;`, [params.number]) as Channel[];
 
             if (channels.length === 0) {
                 console.warn(`the requested channel was not found`)
@@ -537,7 +537,7 @@ export default class WebServer {
 
             const channel = channels[0];
 
-            const channelSources = await DatabaseEngine.All(`SELECT * FROM channel_source WHERE channel_id = ${channel.id};`) as ChannelSource[];
+            const channelSources = await DatabaseEngine.AllSafe(`SELECT * FROM channel_source WHERE channel_id = ?;`, [channel.id]) as ChannelSource[];
 
             if (channelSources.length === 0) {
                 console.warn(`no sources exist for the channel`)
@@ -683,7 +683,7 @@ export default class WebServer {
 
         // Display the lineup we have enabled to emulate an HDHomeRUn device
         fastify.get('/lineup.json', async (req, res) => {
-            const storedChannels = await DatabaseEngine.All(`SELECT * FROM channels;`) as Channel[];
+            const storedChannels = await DatabaseEngine.AllSafe(`SELECT * FROM channels;`, []) as Channel[];
 
             const lineup: any[] = [];
 
