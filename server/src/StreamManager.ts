@@ -7,7 +7,7 @@ import { exec } from 'node:child_process';
 import Piparr from ".";
 
 import { DatabaseEngine } from "./DatabaseEngine";
-import { ChannelSourceInternal, EPGRemap, EPGSource, Stream } from "./types";
+import { Channel, ChannelSource, ChannelSourceInternal, EPGRemap, EPGSource, Stream } from "./types";
 import { BackgroundThreading } from './BackgroundThreading';
 
 export default class StreamManager {
@@ -16,8 +16,6 @@ export default class StreamManager {
 
     // Have we done the initial parsing of streams
     public static streamsParsed: boolean = false;
-    // Have we done the initial parsing of epg
-    public static epgParsed: boolean = false;
 
     public static async FetchStreams() {
         console.log(`[Piparr][StreamManager] fetching streams`);
@@ -197,6 +195,9 @@ export default class StreamManager {
             epgRemap[String(epgRemapValue.original)] = epgRemapValue.new;
         }
 
+        // did we make any updates to the epg files?
+        let combinedEpgDirty : boolean = false;
+
         // run operation with all streams
         for(const source of sources) {
             try {
@@ -208,15 +209,6 @@ export default class StreamManager {
 
                 // Add 12 hours (of seconds) to our last update, m3u should still be the same
                 if (source.last_updated + 86400 >= rightNow && source.healthy === 1  && fs.existsSync(streamsOut)) {
-                    // have we parsed the initial array of streams?
-                    if (!this.epgParsed) {
-                        console.log(`[Piparr][StreamManager] scanning epg ${source.name} for initial population`);
-
-                        await this.ParseEPG(source, epgRemap);
-
-                        continue;
-                    }
-
                     console.log(`[Piparr][StreamManager] epg ${source.name} was updated in the last 12 hours, skipping`);
 
                     continue;
@@ -265,6 +257,8 @@ export default class StreamManager {
                 // await until we are done parsing
                 await this.ParseEPG(source, epgRemap);
 
+                combinedEpgDirty = true;
+
                 // mark as healthy
                 await DatabaseEngine.RunSafe(`UPDATE epgsources SET last_updated = ?, healthy = ? WHERE id = ?`, [rightNow, 1, source.id]);
             } catch(error) {
@@ -274,9 +268,12 @@ export default class StreamManager {
             }
         }
 
-        // have we built the initial values
-        if (!this.epgParsed)
-            this.epgParsed = true;
+        // Only regenerate combined epg if we have a single epg dirty
+        if (combinedEpgDirty) {
+            console.log(`[Piparr][StreamManager] one or more epg files has changed, will need to rebuild guide`);
+
+            await this.CombineEPGFiles();
+        }
     }
 
     public static async ParseEPG(epg : EPGSource, epgRemapMap : { [key : string] : string }) {
@@ -309,6 +306,45 @@ export default class StreamManager {
         await Timers.setTimeout(5000);
     }
 
+    public static async CombineEPGFiles() {
+        console.log('[Piparr][StreamManager] starting epg combination task, this may take awhile');
+
+        // select all epg sources from database
+        const sources = await DatabaseEngine.AllSafe('SELECT * FROM epgsources;', []) as EPGSource[];
+
+        // create variable for storing validated paths
+        const epgSourceFiles : string[] = [];
+
+        // get the list of channels that should be displayed on the guide
+        const guideChannels = await this.GetStreamIDs();
+
+        console.log(`[Piparr][StreamManager] will attempt to build unified guide for ${guideChannels.join(', ')}`);
+
+        // create the path for our grand master guide
+        const guidePath = path.join(Piparr.dataDir, `guide.xml`);
+
+        // run operation with all streams
+        for(const source of sources) {
+            const streamsOut = path.join(Piparr.dataDir, `epg-${source.id}-scrub.xml`);
+
+            if (!fs.existsSync(streamsOut))
+                continue;
+
+            epgSourceFiles.push(streamsOut);
+        }
+
+        console.log(`[Piparr][StreamManager] will combine ${epgSourceFiles.join(', ')} into single file at ${guidePath}`);
+
+        // Run the epg-parser worker script in a background thread
+        await BackgroundThreading.RunAsync(__dirname + '/workers/epg-join.js', { 
+            inputs: epgSourceFiles,
+            output: guidePath,
+            streamChannels: guideChannels
+        }, 60000 * 5);
+
+        console.log('[Piparr][StreamManager] finished epg combination task');
+    }
+
     // Some EPG providers use .gz to compress data, we should handle it here
     public static UngzipFile(source : string) {
         return new Promise((resolve, reject) => {
@@ -333,8 +369,38 @@ export default class StreamManager {
                     resolve(source);
                 });
             })
-
         })
+    }
+
+    public static async GetStreamIDs() : Promise<string[]> {
+        // create new set
+        const streamIds: string[] = [];
+
+        // get epg names from created channels
+        const channels = await DatabaseEngine.AllSafe('SELECT * FROM channels;', []) as Channel[];
+
+        for(const channel of channels) {
+            console.log(`[Piparr][StreamManager][EPGCombiner] adding epg entry ${channel.epg} from channel`)
+
+            if (!streamIds.includes(channel.epg))
+                streamIds.push(channel.epg);
+        }
+
+        const channelStreams = await DatabaseEngine.AllSafe(`SELECT * FROM channel_source;`, []) as ChannelSource[];
+
+        for(const cStream of channelStreams) {
+            const epgEntry = cStream.stream_channel.split('@').shift();
+
+            if (!epgEntry)
+                continue;
+
+            console.log(`[Piparr][StreamManager][EPGCombiner] adding epg entry ${epgEntry} from channel streams`)
+
+            if (!streamIds.includes(epgEntry))
+                streamIds.push(epgEntry);
+        }
+
+        return streamIds;
     }
 
     // Remove streams from local disk

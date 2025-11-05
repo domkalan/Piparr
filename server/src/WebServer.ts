@@ -570,9 +570,49 @@ export default class WebServer {
 
         // Generate the EPG data into an XMLTV output
         fastify.get('/guide.xml', async (req, res) => {
-            // TODO: Combine EPG XML files for proper guide generation
+             // File path to main guide
+            const filePath = path.resolve('./data/guide.xml');
 
-            res.send('');
+            // Check if the file exists
+            if (!fs.existsSync(filePath)) {
+                res.status(404).send({ error: 'File not found' });
+                return;
+            }
+
+            // Stream the file to the client
+            const stream = fs.createReadStream(filePath);
+
+            // Set the mime-type and then send the file stream
+            res.type('application/xml').send(stream);
+        });
+
+        fastify.get('/guides/:epgId/guide.xml', async (req, res) => {
+            const params = req.params as any;
+
+            const sources = await DatabaseEngine.AllSafe(`SELECT * FROM epgsources WHERE id = ?;`, [Number(params.epgId)]) as EPGSource[];
+
+            if (sources.length == 0) {
+                console.warn(`the requested epg source was not found`)
+
+                res.status(404).send({ error: 'File not found' });
+
+                return;
+            }
+
+            // File path to scrubbed guide
+            const filePath = path.resolve(path.join('./data', `epg-${params.epgId}-scrub.xml`));
+
+            // Check if the file exists
+            if (!fs.existsSync(filePath)) {
+                res.status(404).send({ error: 'File not found' });
+                return;
+            }
+
+            // Stream the file to the client
+            const stream = fs.createReadStream(filePath);
+
+            // Set the mime-type and then send the file stream
+            res.type('application/xml').send(stream);
         });
 
         // Get information about the HDHomeRun device

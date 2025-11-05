@@ -46,7 +46,7 @@ saxStream.on("opentag", (node) => {
     };
 
     // if no filters are set, we should include by default
-    if (idFilter === '' && nameFilter === '' && idFilter === '') {
+    if (idFilter === '' && nameFilter === '' && langFilter === '') {
       includeCurrentChannel = true;
     } else {
       // reset value to false
@@ -96,7 +96,7 @@ saxStream.on("text", (text) => {
 saxStream.on("closetag", (tagName) => {
   if (tagName === "display-name" && currentChannel) {
     // trim the name
-    const name = buffer.trim();
+    const name = buffer.trim().replace(/&/g, '&amp;');
 
     // create base object for name
     let displayName = { value: null, lang: null };
@@ -137,7 +137,6 @@ saxStream.on("closetag", (tagName) => {
   }
 
   if (tagName === "channel") {
-
     // Filter out based on channel ids, if filter is set to .us
     // Only channels with .us in their id will be passed
     if (idFilter !== '') {

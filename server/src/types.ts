@@ -16,7 +16,8 @@ export interface Stream {
 export interface Channel {
     id: number, // Unique identifier for the channel
     name: string, // Name of the channel
-    channel_number: number // Channel number
+    channel_number: number, // Channel number,
+    epg: string // EPG guide entry name
 }
 
 // Interface representing a source linked to a channel
