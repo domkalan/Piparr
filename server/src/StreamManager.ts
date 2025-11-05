@@ -23,6 +23,9 @@ export default class StreamManager {
         // select all streams from database
         const streams = await DatabaseEngine.AllSafe('SELECT * FROM streams;', []) as Stream[];
 
+        // do we need to recompile the streams?
+        let combinedStreamsDirty: boolean = false;
+
         // run operation with all streams
         for(const stream of streams) {
             try {
@@ -85,6 +88,9 @@ export default class StreamManager {
                 // await until we are done parsing
                 await this.ParseStream(stream);
 
+                // mark the combined stream as dirty
+                combinedStreamsDirty = true;
+
                 // mark as healthy
                 await DatabaseEngine.RunSafe(`UPDATE streams SET last_updated = ?, healthy = ? WHERE id = ?`, [rightNow, 1, stream.id]);
 
@@ -98,6 +104,45 @@ export default class StreamManager {
                 this.ClearStreamData(stream.id);
             }
         }
+
+        // Check if streams need to be recombined
+        if (combinedStreamsDirty)
+            await this.CombineM3uStreams();
+    }
+
+    public static async CombineM3uStreams() {
+        // log to the console we are starting m3u combine
+        console.log('[Piparr][StreamManager] starting m3u combine task, this may take awhile')
+
+        // select all streams from database
+        const streams = await DatabaseEngine.AllSafe('SELECT * FROM streams;', []) as Stream[];
+
+        // Create an array for storing validated m3u streams
+        const combineM3u : string[] = [];
+
+        // The path our main stream file will be saved
+        const mainStreamOut = path.join(Piparr.dataDir, `main-stream.m3u`);
+
+        // run operation with all streams
+        for(const stream of streams) {
+            // set path where stream is stored
+            const streamsOut = path.join(Piparr.dataDir, `stream-${stream.id}-scrub.m3u`);
+
+            if (!fs.existsSync(streamsOut))
+                continue;
+
+            combineM3u.push(streamsOut);
+        }
+
+        console.log(`[Piparr][StreamManager] will combine ${combineM3u.join(', ')} into single file at ${mainStreamOut}`);
+
+        // Run the epg-parser worker script in a background thread
+        await BackgroundThreading.RunAsync(__dirname + '/workers/m3u8-join.js', { 
+            inputs: combineM3u,
+            output: mainStreamOut
+        }, 60000 * 5);
+
+        console.log('[Piparr][StreamManager] finished m3u combination task');
     }
 
     public static async ParseStream(stream : Stream) : Promise<any> {
@@ -118,11 +163,6 @@ export default class StreamManager {
                 idRegex: stream.idRegex || '',
                 groupRegex: stream.groupRegex || ''
             }, 60000) as any;
-
-            // copy the scrubbed m3u8 to static
-            const streamsOutStatic = path.resolve(path.join(`./static/stream-${stream.id}.m3u`));
-
-            fs.copyFileSync(streamsOutScrub, streamsOutStatic);
 
             const newStreams: ChannelSourceInternal[] = [];
 
@@ -296,11 +336,6 @@ export default class StreamManager {
         }, 60000 * 5);
 
         console.log(`[Piparr][StreamManager] clean of epg done for ${epg.name}`);
-
-        // path for static accessing
-        const streamsOutStatic = path.resolve(path.join(`./static/epg-${epg.id}.xml`));
-
-        fs.copyFileSync(streamsOutScrub, streamsOutStatic);
 
         // give the disk time to flush the write
         await Timers.setTimeout(5000);

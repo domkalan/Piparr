@@ -579,11 +579,10 @@ export default class WebServer {
                 return;
             }
 
-            // Stream the file to the client
-            const stream = fs.createReadStream(filePath);
-
             // Set the mime-type and then send the file stream
-            res.type('application/xml').send(stream);
+            res.type('application/xml');
+            
+            res.send(fs.readFileSync(filePath));
         });
 
         fastify.get('/guides/:epgId/guide.xml', async (req, res) => {
@@ -592,8 +591,6 @@ export default class WebServer {
             const sources = await DatabaseEngine.AllSafe(`SELECT * FROM epgsources WHERE id = ?;`, [Number(params.epgId)]) as EPGSource[];
 
             if (sources.length == 0) {
-                console.warn(`the requested epg source was not found`)
-
                 res.status(404).send({ error: 'File not found' });
 
                 return;
@@ -608,11 +605,53 @@ export default class WebServer {
                 return;
             }
 
-            // Stream the file to the client
-            const stream = fs.createReadStream(filePath);
+            // Set the mime-type and then send the file stream
+            res.type('application/xml')
+            
+            res.send(fs.readFileSync(filePath));
+        });
+
+        // Generate the EPG data into an XMLTV output
+        fastify.get('/stream.m3u', async (req, res) => {
+             // File path to main guide
+            const filePath = path.resolve('./data/main-stream.m3u');
+
+            // Check if the file exists
+            if (!fs.existsSync(filePath)) {
+                res.status(404).send({ error: 'File not found' });
+                return;
+            }
 
             // Set the mime-type and then send the file stream
-            res.type('application/xml').send(stream);
+            res.type('application/text')
+            
+            res.send(fs.readFileSync(filePath));
+        });
+
+        fastify.get('/streams/:streamId/stream.m3u', async (req, res) => {
+            const params = req.params as any;
+
+            const sources = await DatabaseEngine.AllSafe(`SELECT * FROM streams WHERE id = ?;`, [Number(params.streamId)]) as Stream[];
+
+            if (sources.length == 0) {
+                res.status(404).send({ error: 'File not found' });
+
+                return;
+            }
+
+            // File path to scrubbed guide
+            const filePath = path.resolve(path.join('./data', `stream-${params.streamId}-scrub.m3u`));
+
+            // Check if the file exists
+            if (!fs.existsSync(filePath)) {
+                res.status(404).send({ error: 'File not found' });
+                return;
+            }
+
+            // Set the mime-type and then send the file stream
+            res.type('application/text')
+            
+            res.send(fs.readFileSync(filePath));
         });
 
         // Get information about the HDHomeRun device
