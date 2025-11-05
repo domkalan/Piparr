@@ -161,12 +161,12 @@ function writeCombinedEPG() {
     }
 
     for(const programme of outputData.programmes) {
-        const titleScrub = currentProgram.title.replace(/&/g, '&amp;');
-        const descScrub = currentProgram.desc.replace(/&/g, '&amp;')
+        const titleScrub = programme.title.replace(/&/g, '&amp;');
+        const descScrub = programme.desc.replace(/&/g, '&amp;')
 
         output.write(`  <programme start="${programme.attrs.start}" stop="${programme.attrs.stop}" channel="${programme.attrs.channel}">\n`);
-        if (currentProgram.title) output.write(`    <title>${titleScrub}</title>\n`);
-        if (currentProgram.desc) output.write(`    <desc>${descScrub}</desc>\n`);
+        if (programme.title) output.write(`    <title>${titleScrub}</title>\n`);
+        if (programme.desc) output.write(`    <desc>${descScrub}</desc>\n`);
         output.write("  </programme>\n");
     }
 
