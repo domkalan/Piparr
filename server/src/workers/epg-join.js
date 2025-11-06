@@ -42,8 +42,17 @@ function parseEPGFile(inputPath) {
                 };
 
                 // check if the included channel is on the roster, if roster empty just export all
-                if (streamChannels.includes(node.attributes.id) || streamChannels.length === 0) {
+                if (streamChannels[node.attributes.id] || Object.keys(streamChannels).length === 0) {
                     includeCurrentChannel = true;
+
+                    if (streamChannels[node.attributes.id].channel_number)
+                        currentChannel.displayNames.push({ value: streamChannels[node.attributes.id].channel_number });
+
+                    if (streamChannels[node.attributes.id].name)
+                        currentChannel.displayNames.push({ value: streamChannels[node.attributes.id].name });
+
+                    if (streamChannels[node.attributes.id].logo)
+                        currentChannel.displayIcons.push(streamChannels[node.attributes.id].logo);
                 } else {
                     includeCurrentChannel = false;
                 }
@@ -147,7 +156,7 @@ function writeCombinedEPG() {
             output.write(`    <display-name`);
 
             if (displayName.lang) {
-            output.write(` lang="${displayName.lang}"`)
+                output.write(` lang="${displayName.lang}"`)
             }
 
             output.write(`>${displayName.value}</display-name>\n`)
@@ -182,7 +191,7 @@ async function parseEPGFiles() {
     await writeCombinedEPG();
 
     // display what was missed
-    for(const streamChannel of streamChannels) {
+    for(const streamChannel of Object.keys(streamChannels)) {
         if (writtenChannels.has(streamChannel)) {
             console.log(`[Piparr][StreamManager][WORKER][EPG-Join] ✅ Channel ${streamChannel} has been written to the combined guide.`);
 

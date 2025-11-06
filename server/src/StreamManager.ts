@@ -7,7 +7,7 @@ import { exec } from 'node:child_process';
 import Piparr from ".";
 
 import { DatabaseEngine } from "./DatabaseEngine";
-import { Channel, ChannelSource, ChannelSourceInternal, EPGRemap, EPGSource, Stream } from "./types";
+import { Channel, ChannelSource, ChannelSourceInternal, EPGChannelMap, EPGRemap, EPGSource, Stream } from "./types";
 import { BackgroundThreading } from './BackgroundThreading';
 
 export default class StreamManager {
@@ -215,7 +215,6 @@ export default class StreamManager {
     }
 
     // TODO: need to implement custom logo patching
-    // TODO: need to implement correct channel numbering for guide, HDHomeRun uses the epg channel id to match the channel number.
     public static async FetchEPGSources() {
         console.log(`[Piparr][StreamManager] fetching streams`);
         
@@ -353,7 +352,7 @@ export default class StreamManager {
         // get the list of channels that should be displayed on the guide
         const guideChannels = await this.GetStreamIDs();
 
-        console.log(`[Piparr][StreamManager] will attempt to build unified guide for ${guideChannels.join(', ')}`);
+        console.log(`[Piparr][StreamManager] will attempt to build unified guide for ${Object.keys(guideChannels).join(', ')}`);
 
         // create the path for our grand master guide
         const guidePath = path.join(Piparr.dataDir, `guide.xml`);
@@ -407,18 +406,25 @@ export default class StreamManager {
         })
     }
 
-    public static async GetStreamIDs() : Promise<string[]> {
+    public static async GetStreamIDs() : Promise<EPGChannelMap> {
         // create new set
-        const streamIds: string[] = [];
+        const streamIds: EPGChannelMap = {};
 
         // get epg names from created channels
         const channels = await DatabaseEngine.AllSafe('SELECT * FROM channels;', []) as Channel[];
 
         for(const channel of channels) {
-            console.log(`[Piparr][StreamManager][EPGCombiner] adding epg entry ${channel.epg} from channel`)
+            if (!channel.epg)
+                continue;
+            
+            console.log(`[Piparr][StreamManager][EPGCombiner] adding epg entry ${channel.epg} from channel with number ${channel.channel_number}`)
 
-            if (!streamIds.includes(channel.epg))
-                streamIds.push(channel.epg);
+            streamIds[channel.epg] = {
+                name: channel.name,
+                logo: channel.logo,
+                channel_number: channel.channel_number
+
+            };
         }
 
         const channelStreams = await DatabaseEngine.AllSafe(`SELECT * FROM channel_source;`, []) as ChannelSource[];
@@ -429,10 +435,18 @@ export default class StreamManager {
             if (!epgEntry)
                 continue;
 
-            console.log(`[Piparr][StreamManager][EPGCombiner] adding epg entry ${epgEntry} from channel streams`)
+            const channel = channels.find(i => i.id === cStream.channel_id);
 
-            if (!streamIds.includes(epgEntry))
-                streamIds.push(epgEntry);
+            if (!channel)
+                continue;
+
+            console.log(`[Piparr][StreamManager][EPGCombiner] adding epg entry ${epgEntry} from channel streams with channel id ${channel.channel_number}`)
+
+            streamIds[epgEntry] = {
+                name: channel.name,
+                logo: channel.logo,
+                channel_number: channel.channel_number
+            };
         }
 
         return streamIds;

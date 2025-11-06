@@ -17,7 +17,8 @@ export interface Channel {
     id: number, // Unique identifier for the channel
     name: string, // Name of the channel
     channel_number: number, // Channel number,
-    epg: string // EPG guide entry name
+    epg?: string, // EPG guide entry name
+    logo?: string // Optional logo for overriding logo
 }
 
 // Interface representing a source linked to a channel
@@ -53,4 +54,12 @@ export interface EPGSource {
 export interface EPGRemap {
     original: string, // Original EPG data to be remapped
     new: string // New EPG data after remapping
+}
+
+export type EPGChannelMap = {
+    [epgName: string] : {
+        name: string,
+        logo?: string,
+        channel_number: number
+    }
 }
