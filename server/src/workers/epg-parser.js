@@ -131,8 +131,10 @@ saxStream.on("closetag", (tagName) => {
 
   // get the channel icon
   if (tagName === 'icon' && currentChannel) {
-    if (currentNode.attributes.icon) {
-      this.currentChannel.displayIcons.push(currentNode.attributes.icon);
+    if (currentNode.attributes.src) {
+      const logoSrc = currentNode.attributes.src.replace(/&/g, '&amp;')
+
+      currentChannel.displayIcons.push(logoSrc);
     }
   }
 
@@ -162,7 +164,7 @@ saxStream.on("closetag", (tagName) => {
 
       // write icons
       for(const icon of currentChannel.displayIcons) {
-        output.write(`    <icon src="${icon}" />`);
+        output.write(`    <icon src="${icon}" />\n`);
       }
       output.write("  </channel>\n");
     }
@@ -184,8 +186,8 @@ saxStream.on("closetag", (tagName) => {
       const descScrub = currentProgram.desc.replace(/&/g, '&amp;')
 
       output.write(`  <programme start="${currentProgram.attrs.start}" stop="${currentProgram.attrs.stop}" channel="${chID}">\n`);
-      if (currentProgram.title) output.write(`    <title>${titleScrub}</title>\n`);
-      if (currentProgram.desc) output.write(`    <desc>${descScrub}</desc>\n`);
+        if (currentProgram.title) output.write(`    <title>${titleScrub}</title>\n`);
+        if (currentProgram.desc) output.write(`    <desc>${descScrub}</desc>\n`);
       output.write("  </programme>\n");
     }
 

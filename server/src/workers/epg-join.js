@@ -95,8 +95,10 @@ function parseEPGFile(inputPath) {
 
             // get the channel icon
             if (tagName === 'icon' && currentChannel) {
-                if (currentNode.attributes.icon) {
-                    this.currentChannel.displayIcons.push(currentNode.attributes.icon);
+                if (currentNode.attributes.src) {
+                const logoSrc = currentNode.attributes.src.replace(/&/g, '&amp;')
+
+                currentChannel.displayIcons.push(logoSrc);
                 }
             }
 
@@ -163,7 +165,7 @@ function writeCombinedEPG() {
         }
 
         for(const icon of channel.displayIcons) {
-            output.write(`    <icon src="${icon}" />`);
+            output.write(`    <icon src="${icon}" />\n`);
         }
 
         output.write('  </channel>\n');
@@ -174,8 +176,10 @@ function writeCombinedEPG() {
         const descScrub = programme.desc.replace(/&/g, '&amp;')
 
         output.write(`  <programme start="${programme.attrs.start}" stop="${programme.attrs.stop}" channel="${programme.attrs.channel}">\n`);
+
         if (programme.title) output.write(`    <title>${titleScrub}</title>\n`);
         if (programme.desc) output.write(`    <desc>${descScrub}</desc>\n`);
+
         output.write("  </programme>\n");
     }
 

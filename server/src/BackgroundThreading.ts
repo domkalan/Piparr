@@ -33,7 +33,7 @@ export abstract class BackgroundThreading {
                 
         // if worker errors out, terminate it pass error to callback
         worker.on('error', (error) => {
-            console.log(`[Piparr][BackgroundThreading] background task has encountered an error`, error);
+            console.error(`[Piparr][BackgroundThreading] background task has encountered an error`, error);
 
             worker.terminate();
 
