@@ -60,6 +60,7 @@ export type EPGChannelMap = {
     [epgName: string] : {
         name: string,
         logo?: string,
+        epg?: string,
         channel_number: number
     }
 }

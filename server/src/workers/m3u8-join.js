@@ -10,14 +10,17 @@ if (isMainThread)
 const inputPaths = workerData.inputs;
 const outputPath = workerData.output;
 const streamIds = workerData.streams;
+const disableGroups = workerData.disableGroups;
 
 const out = fs.createWriteStream(outputPath, { encoding: "utf8" });
+
+const modifiedChannels = new Set();
 
 function parseExtInf(line) {
     const match = line.match(/^#EXTINF:([^,]*),(.*)$/);
     if (!match) return null;
 
-    const duration = match[1].trim();
+    const duration = match[1].trim().split(' ').shift();
     const attrRegex = /([a-zA-Z0-9\-]+)="([^"]*)"/g;
     const attrs = {};
     let m;
@@ -49,10 +52,40 @@ async function parseFiles(inputPath) {
 
             // Get the tvg id
             const tvgId = lastExtInf?.attrs["tvg-id"] || "";
+            const tvLogo = lastExtInf?.attrs["tvg-logo"] || "";
+            const groupTitle = lastExtInf?.attrs["group-title"] || "";
+            const duration = lastExtInf?.duration || '-1';
 
             // If no stream ids are supplies, just export everything i guess
-            if (streamIds.includes(tvgId) || streamIds.length === 0) {
-                out.write(line + "\n");
+            if (streamIds[tvgId] || Object.keys(streamIds) === 0) {
+                // create the start of our line
+                let modifiedLine = `#EXTINF:${duration}`;
+
+                if (streamIds[tvgId].epg) {
+                    modifiedLine += ` tvg-id="${streamIds[tvgId].epg}"`
+                }
+
+                if (streamIds[tvgId].channel_number)
+                    modifiedLine += ` tvg-chno="${streamIds[tvgId].channel_number}"`
+
+                if (streamIds[tvgId].logo || tvLogo)
+                    modifiedLine += ` tvg-logo="${streamIds[tvgId].logo || tvLogo}"`
+
+                if (streamIds[tvgId].name)
+                    modifiedLine += ` tvg-name="${streamIds[tvgId].name}"`
+
+                // in the future, we can enable custom groups based on stream providers, revisit
+                if (groupTitle && !disableGroups)
+                    modifiedLine += ` group-title="${groupTitle}"`
+
+                if (streamIds[tvgId].name)
+                    modifiedLine += ` ${streamIds[tvgId].name}`
+
+                // write the line
+                out.write(modifiedLine + "\n");
+
+                // mark that we added it
+                modifiedChannels.add(tvgId);
             } else {
                 // set to null, will skip lines until next #EXTINF
                 lastExtInf = null;
@@ -88,6 +121,17 @@ async function combineM3uFiles() {
     for (const inputPath of inputPaths) {
         await parseFiles(inputPath)
     }
+
+    for(const streamChannel of Object.keys(streamIds)) {
+        if (modifiedChannels.has(streamChannel)) {
+            console.log(`[Piparr][StreamManager][WORKER][EPG-Join] ✅ Stream ${streamChannel} has been written to the combined guide.`);
+
+            continue;
+        }
+
+        console.log(`[Piparr][StreamManager][WORKER][EPG-Join] ❌ Stream ${streamChannel} was not written to the combined guide, was not found in stream`)
+    }
+
 
     parentPort.postMessage({});
 }

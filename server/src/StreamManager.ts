@@ -137,14 +137,15 @@ export default class StreamManager {
 
         console.log(`[Piparr][StreamManager] will combine ${combineM3u.join(', ')} into single file at ${mainStreamOut}`);
 
-        const channelStreams = await DatabaseEngine.AllSafe(`SELECT * FROM channel_source;`, []) as ChannelSource[];
-        const channelStreamsIds = channelStreams.map(i => { return i.stream_channel; });
+        // get the list of channels that should be displayed on the guide
+        const guideChannels = await this.GetStreamIDs();
 
         // Run the epg-parser worker script in a background thread
         await BackgroundThreading.RunAsync(__dirname + '/workers/m3u8-join.js', { 
             inputs: combineM3u,
             output: mainStreamOut,
-            streams: channelStreamsIds
+            streams: guideChannels,
+            disableGroups: process.env.DISABLEM3UGROUPS === 'true' // TODO: convert this to a setting in the settings page
         }, 60000 * 5);
 
         console.log('[Piparr][StreamManager] finished m3u combination task');
@@ -417,11 +418,12 @@ export default class StreamManager {
             if (!channel.epg)
                 continue;
             
-            console.log(`[Piparr][StreamManager][EPGCombiner] adding epg entry ${channel.epg} from channel with number ${channel.channel_number}`)
+            console.log(`[Piparr][StreamManager][Combiner] adding entry ${channel.epg} from channel with number ${channel.channel_number}`)
 
             streamIds[channel.epg] = {
                 name: channel.name,
                 logo: channel.logo,
+                epg: channel.epg,
                 channel_number: channel.channel_number
 
             };
@@ -440,13 +442,27 @@ export default class StreamManager {
             if (!channel)
                 continue;
 
-            console.log(`[Piparr][StreamManager][EPGCombiner] adding epg entry ${epgEntry} from channel streams with channel id ${channel.channel_number}`)
+            console.log(`[Piparr][StreamManager][Combiner] adding entry ${cStream.stream_channel} from channel streams with channel id ${channel.channel_number}`)
 
-            streamIds[epgEntry] = {
+            // input without trimming
+            streamIds[cStream.stream_channel] = {
                 name: channel.name,
                 logo: channel.logo,
+                epg: channel.epg,
                 channel_number: channel.channel_number
             };
+
+            // input trimmed if different
+            if (epgEntry !== cStream.stream_channel) {
+                console.log(`[Piparr][StreamManager][Combiner] adding entry ${epgEntry} from channel streams with channel id ${channel.channel_number}`)
+
+                streamIds[epgEntry] = {
+                    name: channel.name,
+                    logo: channel.logo,
+                    epg: channel.epg,
+                    channel_number: channel.channel_number
+                };
+            }
         }
 
         return streamIds;
