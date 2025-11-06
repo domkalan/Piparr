@@ -137,12 +137,14 @@ export default class StreamManager {
 
         console.log(`[Piparr][StreamManager] will combine ${combineM3u.join(', ')} into single file at ${mainStreamOut}`);
 
-        // TODO: we only want to show the streams that have a channel defined, revisit this
+        const channelStreams = await DatabaseEngine.AllSafe(`SELECT * FROM channel_source;`, []) as ChannelSource[];
+        const channelStreamsIds = channelStreams.map(i => { return i.stream_channel; });
 
         // Run the epg-parser worker script in a background thread
         await BackgroundThreading.RunAsync(__dirname + '/workers/m3u8-join.js', { 
             inputs: combineM3u,
-            output: mainStreamOut
+            output: mainStreamOut,
+            streams: channelStreamsIds
         }, 60000 * 5);
 
         console.log('[Piparr][StreamManager] finished m3u combination task');

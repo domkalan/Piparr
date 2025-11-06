@@ -41,8 +41,8 @@ function parseEPGFile(inputPath) {
                     displayIcons: []
                 };
 
-                // check if the included channel is on the roster
-                if (streamChannels.includes(node.attributes.id)) {
+                // check if the included channel is on the roster, if roster empty just export all
+                if (streamChannels.includes(node.attributes.id) || streamChannels.length === 0) {
                     includeCurrentChannel = true;
                 } else {
                     includeCurrentChannel = false;
